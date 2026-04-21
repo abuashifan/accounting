@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Debug;
 
 use App\Domains\Accounting\Services\GeneralLedgerService;
-use App\Domains\Accounting\Services\TrialBalanceService;
 use App\Http\Controllers\Controller;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
@@ -35,24 +34,13 @@ class DebugReportController extends Controller
         ]);
     }
 
-    public function trialBalance(Request $request, TrialBalanceService $service): View
+    public function trialBalancePage(): View
     {
-        $validated = $request->validate([
-            'start_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-        ]);
-
         return view('debug.trial-balance', [
             'filters' => [
-                'start_date' => $validated['start_date'] ?? '',
-                'end_date' => $validated['end_date'] ?? '',
+                'start_date' => request('start_date', ''),
+                'end_date' => request('end_date', ''),
             ],
-            'trialBalance' => isset($validated['start_date'], $validated['end_date'])
-                ? $service->getTrialBalance(
-                    startDate: (string) $validated['start_date'],
-                    endDate: (string) $validated['end_date'],
-                )
-                : null,
         ]);
     }
 }
