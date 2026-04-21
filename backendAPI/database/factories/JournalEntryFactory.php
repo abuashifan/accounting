@@ -43,13 +43,13 @@ class JournalEntryFactory extends Factory
         );
 
         return [
-            'journal_no' => sprintf('JRN-%04d', fake()->unique()->numberBetween(1, 9999)),
+            'journal_no' => sprintf('JRN-%04d-%06d', 2026, fake()->unique()->numberBetween(1, 999999)),
             'date' => fake()->dateTimeBetween(
                 $period->start_date->startOfDay(),
                 $period->end_date->endOfDay()
             )->format('Y-m-d'),
             'description' => fake()->sentence(),
-            'status' => 'active',
+            'status' => 'posted',
             'accounting_period_id' => $period->id,
             'created_by' => $user->id,
             'updated_by' => null,

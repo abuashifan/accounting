@@ -28,9 +28,15 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        DB::statement('ALTER TABLE journal_lines ADD CONSTRAINT chk_journal_lines_debit_non_negative CHECK (debit >= 0)');
-        DB::statement('ALTER TABLE journal_lines ADD CONSTRAINT chk_journal_lines_credit_non_negative CHECK (credit >= 0)');
-        DB::statement('ALTER TABLE journal_lines ADD CONSTRAINT chk_journal_lines_single_sided CHECK ((debit > 0 AND credit = 0) OR (credit > 0 AND debit = 0))');
+        /**
+         * SQLite tidak mendukung `ALTER TABLE ... ADD CONSTRAINT ...` untuk CHECK constraint.
+         * Validasi tetap dijaga di layer domain (ValidateJournalAction) dan (untuk DB lain) via constraint.
+         */
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement('ALTER TABLE journal_lines ADD CONSTRAINT chk_journal_lines_debit_non_negative CHECK (debit >= 0)');
+            DB::statement('ALTER TABLE journal_lines ADD CONSTRAINT chk_journal_lines_credit_non_negative CHECK (credit >= 0)');
+            DB::statement('ALTER TABLE journal_lines ADD CONSTRAINT chk_journal_lines_single_sided CHECK ((debit > 0 AND credit = 0) OR (credit > 0 AND debit = 0))');
+        }
     }
 
     /**

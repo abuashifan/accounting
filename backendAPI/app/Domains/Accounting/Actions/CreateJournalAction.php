@@ -6,6 +6,8 @@ use App\Domains\Accounting\DTOs\JournalData;
 use App\Domains\Accounting\Models\JournalEntry;
 use App\Domains\Accounting\Models\JournalLine;
 use App\Models\User;
+use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class CreateJournalAction
@@ -21,13 +23,13 @@ class CreateJournalAction
             throw new RuntimeException('An acting user is required to persist a journal entry.');
         }
 
-        $journalEntry ??= new JournalEntry();
+        $journalEntry ??= new JournalEntry;
 
         $journalEntry->fill([
-            'journal_no' => $journalEntry->exists ? $journalEntry->journal_no : $this->generateJournalNumber(),
+            'journal_no' => $journalEntry->exists ? $journalEntry->journal_no : $this->generateJournalNumber($data->date),
             'date' => $data->date,
             'description' => $data->description,
-            'status' => $journalEntry->exists ? $journalEntry->status : 'active',
+            'status' => $journalEntry->exists ? $journalEntry->status : 'draft',
             'accounting_period_id' => $data->accounting_period_id,
             'created_by' => $journalEntry->exists ? $journalEntry->created_by : $actorId,
             'updated_by' => $actorId,
@@ -54,10 +56,35 @@ class CreateJournalAction
         return $journalEntry->load(['journalLines.account', 'accountingPeriod']);
     }
 
-    private function generateJournalNumber(): string
+    private function generateJournalNumber(string $date): string
     {
-        $lastId = (int) JournalEntry::query()->max('id') + 1;
+        $year = (int) CarbonImmutable::parse($date)->format('Y');
 
-        return sprintf('JRN-%06d', $lastId);
+        DB::table('journal_sequences')->insertOrIgnore([
+            'year' => $year,
+            'last_number' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $sequence = DB::table('journal_sequences')
+            ->where('year', $year)
+            ->lockForUpdate()
+            ->first();
+
+        if (! $sequence) {
+            throw new RuntimeException('Failed to obtain journal sequence row.');
+        }
+
+        $next = ((int) $sequence->last_number) + 1;
+
+        DB::table('journal_sequences')
+            ->where('year', $year)
+            ->update([
+                'last_number' => $next,
+                'updated_at' => now(),
+            ]);
+
+        return sprintf('JRN-%04d-%06d', $year, $next);
     }
 }

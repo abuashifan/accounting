@@ -6,19 +6,18 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        Schema::create('journal_entries', function (Blueprint $table) {
+        Schema::create('invoices', function (Blueprint $table) {
             $table->id();
-            $table->string('journal_no')->unique();
-            $table->date('date')->index();
+            $table->string('invoice_no')->unique();
+            $table->date('invoice_date')->index();
             $table->text('description')->nullable();
-            $table->enum('status', ['draft', 'posted', 'void'])->default('draft')->index();
-            $table->foreignId('accounting_period_id')
-                ->constrained()
+            $table->decimal('amount', 18, 2);
+            $table->decimal('paid_amount', 18, 2)->default(0);
+            $table->enum('status', ['unpaid', 'partial', 'paid'])->default('unpaid')->index();
+            $table->foreignId('journal_entry_id')
+                ->constrained('journal_entries')
                 ->cascadeOnUpdate()
                 ->restrictOnDelete();
             $table->foreignId('created_by')
@@ -34,11 +33,8 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropIfExists('journal_entries');
+        Schema::dropIfExists('invoices');
     }
 };

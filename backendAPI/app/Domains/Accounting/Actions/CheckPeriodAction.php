@@ -18,7 +18,7 @@ class CheckPeriodAction
             return;
         }
 
-        if ($user && Gate::forUser($user)->allows('journal.edit_locked')) {
+        if ($user && Gate::forUser($user)->allows('journal.override_period')) {
             return;
         }
 

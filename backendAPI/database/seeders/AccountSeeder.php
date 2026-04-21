@@ -15,6 +15,7 @@ class AccountSeeder extends Seeder
         $accounts = [
             ['code' => '1000', 'name' => 'Kas', 'type' => 'asset'],
             ['code' => '1100', 'name' => 'Bank', 'type' => 'asset'],
+            ['code' => '1200', 'name' => 'Piutang Usaha', 'type' => 'asset'],
             ['code' => '2000', 'name' => 'Hutang', 'type' => 'liability'],
             ['code' => '3000', 'name' => 'Modal', 'type' => 'equity'],
             ['code' => '4000', 'name' => 'Pendapatan', 'type' => 'revenue'],
