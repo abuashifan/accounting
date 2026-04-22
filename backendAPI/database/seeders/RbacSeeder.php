@@ -16,6 +16,7 @@ class RbacSeeder extends Seeder
             'journal.update' => 'Update jurnal (draft)',
             'journal.void' => 'Void jurnal',
             'journal.override_period' => 'Override period closed',
+            'settings.manage' => 'Kelola pengaturan aplikasi',
         ];
 
         foreach ($permissions as $name => $label) {

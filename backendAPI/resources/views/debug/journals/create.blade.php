@@ -41,7 +41,7 @@
                     <table class="table table-sm table-bordered align-middle">
                         <thead>
                             <tr>
-                                <th style="width: 160px">Account ID</th>
+                                <th style="width: 320px">Account</th>
                                 <th style="width: 160px">Debit</th>
                                 <th style="width: 160px">Credit</th>
                                 <th style="width: 80px"></th>
@@ -61,11 +61,39 @@
     <script>
         (() => {
             const tbody = document.getElementById('linesTbody');
+            let accounts = [];
+
+            function escapeHtml(text) {
+                return String(text)
+                    .replaceAll('&', '&amp;')
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;')
+                    .replaceAll('"', '&quot;')
+                    .replaceAll("'", '&#039;');
+            }
+
+            function accountOptionsHtml(selectedId) {
+                const selected = Number(selectedId || 0);
+                const hasSelected = selected && accounts.some((a) => a.id === selected);
+                const options = [
+                    `<option value="" ${selected ? '' : 'selected'} disabled>— Select account —</option>`,
+                    ...(hasSelected ? [] : (selected ? [`<option value="${selected}" selected>(ID ${selected})</option>`] : [])),
+                    ...accounts.map((a) => {
+                        const label = `${a.code} - ${a.name}`;
+                        return `<option value="${a.id}" ${a.id === selected ? 'selected' : ''}>${escapeHtml(label)}</option>`;
+                    }),
+                ];
+                return options.join('');
+            }
 
             function addLine(line = { account_id: '', debit: '0', credit: '0' }) {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td><input class="form-control form-control-sm" type="number" data-field="account_id" required value="${line.account_id ?? ''}"></td>
+                    <td>
+                        <select class="form-select form-select-sm" data-field="account_id" required>
+                            ${accountOptionsHtml(line.account_id)}
+                        </select>
+                    </td>
                     <td><input class="form-control form-control-sm" type="number" step="0.01" min="0" data-field="debit" required value="${line.debit ?? '0'}"></td>
                     <td><input class="form-control form-control-sm" type="number" step="0.01" min="0" data-field="credit" required value="${line.credit ?? '0'}"></td>
                     <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" data-remove>×</button></td>
@@ -77,8 +105,11 @@
             }
 
             document.getElementById('addLine').addEventListener('click', () => addLine());
-            addLine();
-            addLine();
+
+            async function loadAccounts() {
+                const res = await window.DebugApi.apiJson('/api/accounts');
+                accounts = Array.isArray(res?.data) ? res.data : [];
+            }
 
             document.getElementById('journalForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -112,6 +143,14 @@
                     window.location.href = '{{ route('debug.journals.index') }}';
                 }
             });
+
+            (async () => {
+                try {
+                    await loadAccounts();
+                } catch (e) {}
+                addLine();
+                addLine();
+            })();
         })();
     </script>
 @endpush

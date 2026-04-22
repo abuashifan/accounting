@@ -12,11 +12,21 @@
         <a class="navbar-brand" href="{{ route('debug.dashboard') }}">Debug UI</a>
         <div class="navbar-nav">
             <a class="nav-link" href="{{ route('debug.dashboard') }}">Dashboard</a>
+            <a class="nav-link" href="{{ route('debug.accounts') }}">Accounts</a>
             <a class="nav-link" href="{{ route('debug.journals.index') }}">Journal</a>
             <a class="nav-link" href="{{ route('debug.invoices.index') }}">Invoice</a>
             <a class="nav-link" href="{{ route('debug.payments.index') }}">Payment</a>
+            <a class="nav-link" href="{{ route('debug.inventory.items') }}">Items</a>
+            <a class="nav-link" href="{{ route('debug.inventory.warehouses') }}">Warehouses</a>
             <a class="nav-link" href="{{ route('debug.trial-balance') }}">Trial Balance</a>
             <a class="nav-link" href="{{ route('debug.general-ledger') }}">General Ledger</a>
+            <a class="nav-link" href="{{ route('debug.profit-loss') }}">Profit &amp; Loss</a>
+            <a class="nav-link" href="{{ route('debug.balance-sheet') }}">Balance Sheet</a>
+            <a class="nav-link" href="{{ route('debug.cash-flow') }}">Cash Flow</a>
+            <a class="nav-link" href="{{ route('debug.inventory.stock-card') }}">Stock Card</a>
+            <a class="nav-link" href="{{ route('debug.inventory.adjustment') }}">Stock Adjustment</a>
+            <a class="nav-link" href="{{ route('debug.inventory.transfer') }}">Stock Transfer</a>
+            <a class="nav-link" href="{{ route('debug.settings.journals') }}">Settings</a>
         </div>
         <div class="d-flex ms-auto gap-2 align-items-center">
             <input id="tokenPreview" class="form-control form-control-sm" style="width: 360px" readonly type="password" placeholder="Bearer token">

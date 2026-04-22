@@ -25,7 +25,7 @@ class DebugReportController extends Controller
                 'end_date' => $validated['end_date'] ?? '',
             ],
             'ledger' => isset($validated['account_id'], $validated['start_date'], $validated['end_date'])
-                ? $service->getLedger(
+                ? $service->getLedgerDetailed(
                     accountId: (int) $validated['account_id'],
                     startDate: (string) $validated['start_date'],
                     endDate: (string) $validated['end_date'],
@@ -38,8 +38,38 @@ class DebugReportController extends Controller
     {
         return view('debug.trial-balance', [
             'filters' => [
-                'start_date' => request('start_date', ''),
-                'end_date' => request('end_date', ''),
+                'date_from' => request('date_from', ''),
+                'date_to' => request('date_to', ''),
+            ],
+        ]);
+    }
+
+    public function profitLossPage(): View
+    {
+        return view('debug.profit-loss', [
+            'filters' => [
+                'date_from' => request('date_from', ''),
+                'date_to' => request('date_to', ''),
+            ],
+        ]);
+    }
+
+    public function balanceSheetPage(): View
+    {
+        return view('debug.balance-sheet', [
+            'filters' => [
+                'date_from' => request('date_from', ''),
+                'date_to' => request('date_to', ''),
+            ],
+        ]);
+    }
+
+    public function cashFlowPage(): View
+    {
+        return view('debug.cash-flow', [
+            'filters' => [
+                'date_from' => request('date_from', ''),
+                'date_to' => request('date_to', ''),
             ],
         ]);
     }

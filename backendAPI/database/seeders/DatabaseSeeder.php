@@ -19,7 +19,6 @@ class DatabaseSeeder extends Seeder
             RbacSeeder::class,
             AccountSeeder::class,
             AccountingPeriodSeeder::class,
-            JournalSeeder::class,
         ]);
     }
 }

@@ -15,8 +15,8 @@ class GeneralLedgerReportRequest extends FormRequest
     {
         return [
             'account_id' => ['required', 'integer', 'exists:accounts,id'],
-            'start_date' => ['required', 'date'],
-            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ];
     }
 }

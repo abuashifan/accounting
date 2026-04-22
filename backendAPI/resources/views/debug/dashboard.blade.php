@@ -39,6 +39,137 @@
             </div>
         </div>
     </div>
+
+    <div class="d-flex align-items-center justify-content-between mt-4 mb-2">
+        <h2 class="h6 m-0 text-muted">Master Data</h2>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12 col-md-4">
+            <a class="text-decoration-none" href="{{ route('debug.accounts') }}">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="fw-semibold">Accounts</div>
+                        <div class="text-muted small">Chart of accounts</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-between mt-4 mb-2">
+        <h2 class="h6 m-0 text-muted">Reports</h2>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12 col-md-4">
+            <a class="text-decoration-none" href="{{ route('debug.trial-balance') }}">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="fw-semibold">Trial Balance</div>
+                        <div class="text-muted small">Neraca saldo (posted only)</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-12 col-md-4">
+            <a class="text-decoration-none" href="{{ route('debug.general-ledger') }}">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="fw-semibold">General Ledger</div>
+                        <div class="text-muted small">Buku besar per akun</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-12 col-md-4">
+            <a class="text-decoration-none" href="{{ route('debug.profit-loss') }}">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="fw-semibold">Profit &amp; Loss</div>
+                        <div class="text-muted small">Laba rugi (revenue/expense)</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-12 col-md-4">
+            <a class="text-decoration-none" href="{{ route('debug.balance-sheet') }}">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="fw-semibold">Balance Sheet</div>
+                        <div class="text-muted small">Neraca (asset/liability/equity)</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-12 col-md-4">
+            <a class="text-decoration-none" href="{{ route('debug.cash-flow') }}">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="fw-semibold">Cash Flow</div>
+                        <div class="text-muted small">Arus kas (kas/bank)</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-between mt-4 mb-2">
+        <h2 class="h6 m-0 text-muted">Inventory</h2>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12 col-md-4">
+            <a class="text-decoration-none" href="{{ route('debug.inventory.items') }}">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="fw-semibold">Item Master</div>
+                        <div class="text-muted small">/api/items</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-12 col-md-4">
+            <a class="text-decoration-none" href="{{ route('debug.inventory.warehouses') }}">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="fw-semibold">Warehouses</div>
+                        <div class="text-muted small">/api/warehouses</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-12 col-md-4">
+            <a class="text-decoration-none" href="{{ route('debug.inventory.stock-card') }}">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="fw-semibold">Stock Card</div>
+                        <div class="text-muted small">/api/reports/stock-card</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-12 col-md-4">
+            <a class="text-decoration-none" href="{{ route('debug.inventory.adjustment') }}">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="fw-semibold">Stock Adjustment</div>
+                        <div class="text-muted small">/api/stocks/adjustment</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-12 col-md-4">
+            <a class="text-decoration-none" href="{{ route('debug.inventory.transfer') }}">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="fw-semibold">Stock Transfer</div>
+                        <div class="text-muted small">/api/stocks/transfer</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
 @endsection
 
 @push('scripts')

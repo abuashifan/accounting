@@ -8,6 +8,7 @@ use App\Domains\Accounting\Actions\ValidateJournalAction;
 use App\Domains\Accounting\DTOs\JournalData;
 use App\Domains\Accounting\Models\AccountingPeriod;
 use App\Domains\Accounting\Models\JournalEntry;
+use App\Models\AppSetting;
 use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -20,6 +21,8 @@ use Illuminate\Validation\ValidationException;
 
 class JournalService
 {
+    private const KEY_JOURNAL_AUTO_POST = 'journals.auto_post';
+
     public function __construct(
         private readonly ValidateJournalAction $validateJournalAction,
         private readonly CheckPeriodAction $checkPeriodAction,
@@ -43,6 +46,11 @@ class JournalService
             $journalEntry = $this->createJournalAction->execute($data, $user);
 
             $this->logAudit('journal.created', $journalEntry, $user, null, $this->snapshot($journalEntry), $reason);
+
+            if (AppSetting::getBool(self::KEY_JOURNAL_AUTO_POST, false)) {
+                $autoReason = $reason ? "Auto-post: {$reason}" : 'Auto-post';
+                $journalEntry = $this->postEntry($journalEntry, $user, $autoReason);
+            }
 
             return $journalEntry;
         });
@@ -126,6 +134,15 @@ class JournalService
                 ->with(['accountingPeriod', 'journalLines'])
                 ->findOrFail($id);
 
+            return $this->postEntry($journalEntry, $user, $reason);
+        });
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    private function postEntry(JournalEntry $journalEntry, User $user, ?string $reason = null): JournalEntry
+    {
             if ($journalEntry->status !== 'draft') {
                 throw ValidationException::withMessages([
                     'status' => ['Only draft journals can be posted.'],
@@ -149,7 +166,6 @@ class JournalService
             $this->logAudit('journal.posted', $journalEntry, $user, $before, $this->snapshot($journalEntry), $reason);
 
             return $journalEntry;
-        });
     }
 
     private function resolveUserOrFail(): User

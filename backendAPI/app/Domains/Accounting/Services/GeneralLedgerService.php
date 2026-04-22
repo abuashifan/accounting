@@ -2,17 +2,73 @@
 
 namespace App\Domains\Accounting\Services;
 
-use App\Models\Account;
-use App\Models\JournalLine;
+use App\Domains\Accounting\Models\Account;
+use App\Domains\Accounting\Models\JournalLine;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 class GeneralLedgerService
 {
     /**
+     * General Ledger (Buku Besar) - posted journals only.
+     *
+     * Running balance rule:
+     * balance = previous_balance + debit - credit
+     *
+     * @return list<array{
+     *   date: string,
+     *   journal_id: int,
+     *   description: string|null,
+     *   debit: float,
+     *   credit: float,
+     *   balance: float
+     * }>
+     */
+    public function getLedger(int $accountId, ?string $dateFrom = null, ?string $dateTo = null): array
+    {
+        $lines = JournalLine::query()
+            ->select([
+                'journal_lines.debit',
+                'journal_lines.credit',
+                'journal_lines.description as line_description',
+                'journal_entries.id as journal_id',
+                'journal_entries.date as journal_date',
+                'journal_entries.description as journal_description',
+            ])
+            ->join('journal_entries', 'journal_entries.id', '=', 'journal_lines.journal_entry_id')
+            ->where('journal_lines.account_id', $accountId)
+            ->where('journal_entries.status', 'posted')
+            ->when($dateFrom, fn ($q) => $q->where('journal_entries.date', '>=', $dateFrom))
+            ->when($dateTo, fn ($q) => $q->where('journal_entries.date', '<=', $dateTo))
+            ->orderBy('journal_entries.date')
+            ->orderBy('journal_entries.id')
+            ->orderBy('journal_lines.id')
+            ->get();
+
+        $runningBalance = 0.0;
+
+        return $lines->map(function (object $line) use (&$runningBalance): array {
+            $debit = round((float) $line->debit, 2);
+            $credit = round((float) $line->credit, 2);
+            $runningBalance = round($runningBalance + ($debit - $credit), 2);
+
+            return [
+                'date' => $this->toDateString($line->journal_date),
+                'journal_id' => (int) $line->journal_id,
+                'description' => $line->journal_description ?? $line->line_description,
+                'debit' => $debit,
+                'credit' => $credit,
+                'balance' => $runningBalance,
+            ];
+        })->values()->all();
+    }
+
+    /**
+     * Kept for internal/debug UI which needs opening/closing details.
+     *
      * @return array<string, mixed>
      */
-    public function getLedger(int $accountId, string $startDate, string $endDate): array
+    public function getLedgerDetailed(int $accountId, string $startDate, string $endDate): array
     {
         [$startDate, $endDate] = $this->normalizePeriod($startDate, $endDate);
 
@@ -30,7 +86,7 @@ class GeneralLedgerService
 
         $openingDebit = round((float) ($openingTotals?->debit_total ?? 0), 2);
         $openingCredit = round((float) ($openingTotals?->credit_total ?? 0), 2);
-        $openingBalance = round($this->toBalanceDelta($account, $openingDebit, $openingCredit), 2);
+        $openingBalance = round($this->toSignedBalanceDelta($account, $openingDebit, $openingCredit), 2);
 
         $lines = JournalLine::query()
             ->select([
@@ -57,7 +113,7 @@ class GeneralLedgerService
         $entries = $lines->map(function (object $line) use ($account, &$runningBalance): array {
             $debit = round((float) $line->debit, 2);
             $credit = round((float) $line->credit, 2);
-            $runningBalance = round($runningBalance + $this->toBalanceDelta($account, $debit, $credit), 2);
+            $runningBalance = round($runningBalance + $this->toSignedBalanceDelta($account, $debit, $credit), 2);
 
             return [
                 'journal_entry_id' => (int) $line->journal_entry_id,
@@ -93,7 +149,7 @@ class GeneralLedgerService
     }
 
     /**
-     * @return Collection<int, array<string, mixed>>
+     * @return Collection<int, array{id:int,code:string,name:string,type:string}>
      */
     public function getSelectableAccounts(): Collection
     {
@@ -102,10 +158,10 @@ class GeneralLedgerService
             ->orderBy('code')
             ->get(['id', 'code', 'name', 'type'])
             ->map(fn (Account $account): array => [
-                'id' => $account->id,
-                'code' => $account->code,
-                'name' => $account->name,
-                'type' => $account->type,
+                'id' => (int) $account->id,
+                'code' => (string) $account->code,
+                'name' => (string) $account->name,
+                'type' => (string) $account->type,
             ]);
     }
 
@@ -123,12 +179,23 @@ class GeneralLedgerService
         return [$startDate, $endDate];
     }
 
-    private function toBalanceDelta(Account $account, float $debit, float $credit): float
+    private function toSignedBalanceDelta(Account $account, float $debit, float $credit): float
     {
         if (in_array($account->type, ['asset', 'expense'], true)) {
             return $debit - $credit;
         }
 
         return $credit - $debit;
+    }
+
+    private function toDateString(mixed $value): string
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        $string = (string) $value;
+
+        return strlen($string) >= 10 ? substr($string, 0, 10) : $string;
     }
 }
