@@ -7,9 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Invoice extends Model
+class PurchaseInvoice extends Model
 {
-    protected $table = 'invoices';
+    protected $table = 'purchase_invoices';
 
     /**
      * @var list<string>
@@ -42,14 +42,14 @@ class Invoice extends Model
         return $this->belongsTo(JournalEntry::class);
     }
 
-    public function payments(): HasMany
+    public function purchaseInvoiceLines(): HasMany
     {
-        return $this->hasMany(Payment::class);
+        return $this->hasMany(PurchaseInvoiceLine::class, 'purchase_invoice_id');
     }
 
-    public function invoiceLines(): HasMany
+    public function purchasePayments(): HasMany
     {
-        return $this->hasMany(InvoiceLine::class, 'invoice_id');
+        return $this->hasMany(PurchasePayment::class, 'purchase_invoice_id');
     }
 
     public function creator(): BelongsTo
@@ -62,3 +62,4 @@ class Invoice extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 }
+

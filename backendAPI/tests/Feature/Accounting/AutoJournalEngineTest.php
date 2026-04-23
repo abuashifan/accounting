@@ -8,8 +8,11 @@ use App\Domains\Accounting\Services\InvoiceService;
 use App\Domains\Accounting\Services\PaymentService;
 use App\Models\Account;
 use App\Models\AccountingPeriod;
+use App\Models\AppSetting;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -24,11 +27,12 @@ class AutoJournalEngineTest extends TestCase
 
         $this->createOpenPeriod();
         $this->createBaseAccounts();
+        AppSetting::setBool('journals.auto_post', true);
     }
 
     public function test_invoice_service_creates_invoice_and_posted_auto_journal(): void
     {
-        $user = User::factory()->create();
+        $user = $this->createUserWithJournalCreatePermission();
         $this->actingAs($user);
 
         $invoice = app(InvoiceService::class)->create(new InvoiceData(
@@ -60,7 +64,7 @@ class AutoJournalEngineTest extends TestCase
 
     public function test_payment_service_records_payment_updates_invoice_and_posts_cash_vs_receivable_journal(): void
     {
-        $user = User::factory()->create();
+        $user = $this->createUserWithJournalCreatePermission();
         $this->actingAs($user);
 
         $invoice = app(InvoiceService::class)->create(new InvoiceData(
@@ -136,5 +140,17 @@ class AutoJournalEngineTest extends TestCase
             'parent_id' => null,
             'is_active' => true,
         ]);
+    }
+
+    private function createUserWithJournalCreatePermission(): User
+    {
+        $permissionCreate = Permission::query()->firstOrCreate(['name' => 'journal.create']);
+        $role = Role::query()->firstOrCreate(['name' => 'auto_journal_user']);
+        $role->permissions()->syncWithoutDetaching([$permissionCreate->id]);
+
+        $user = User::factory()->create();
+        $user->roles()->syncWithoutDetaching([$role->id]);
+
+        return $user;
     }
 }

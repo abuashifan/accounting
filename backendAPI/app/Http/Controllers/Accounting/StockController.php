@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Accounting;
 
 use App\Domains\Accounting\Services\StockAdjustmentService;
+use App\Domains\Accounting\Services\StockService;
 use App\Domains\Accounting\Services\StockTransferService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Accounting\StockAdjustmentRequest;
+use App\Http\Requests\Accounting\StockPurchaseRequest;
 use App\Http\Requests\Accounting\StockTransferRequest;
 use App\Http\Requests\Accounting\StoreWarehouseRequest;
 use App\Http\Requests\Accounting\UpdateWarehouseRequest;
@@ -55,6 +57,13 @@ class StockController extends Controller
         ]);
     }
 
+    public function purchase(StockPurchaseRequest $request, StockService $service): JsonResponse
+    {
+        return response()->json([
+            'data' => $service->purchase($request->validated()),
+        ]);
+    }
+
     public function transfer(StockTransferRequest $request, StockTransferService $service): JsonResponse
     {
         return response()->json([
@@ -62,4 +71,3 @@ class StockController extends Controller
         ]);
     }
 }
-

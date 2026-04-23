@@ -7,6 +7,9 @@ use App\Http\Controllers\Debug\DebugInventoryController;
 use App\Http\Controllers\Debug\DebugInvoiceController;
 use App\Http\Controllers\Debug\DebugJournalController;
 use App\Http\Controllers\Debug\DebugPaymentController;
+use App\Http\Controllers\Debug\DebugPurchaseInvoiceController;
+use App\Http\Controllers\Debug\DebugPurchasePaymentController;
+use App\Http\Controllers\Debug\DebugPurchaseController;
 use App\Http\Controllers\Debug\DebugReportController;
 use App\Http\Controllers\Debug\DebugSettingsController;
 use Illuminate\Support\Facades\Route;
@@ -42,6 +45,22 @@ Route::prefix('debug')->name('debug.')->group(function () {
         Route::get('/create', [DebugPaymentController::class, 'create'])->name('create');
     });
 
+    Route::prefix('purchase-invoices')->name('purchase-invoices.')->group(function () {
+        Route::get('/', [DebugPurchaseInvoiceController::class, 'index'])->name('index');
+        Route::get('/create', [DebugPurchaseInvoiceController::class, 'create'])->name('create');
+    });
+
+    Route::prefix('purchase-payments')->name('purchase-payments.')->group(function () {
+        Route::get('/', [DebugPurchasePaymentController::class, 'index'])->name('index');
+        Route::get('/create', [DebugPurchasePaymentController::class, 'create'])->name('create');
+    });
+
+    Route::prefix('purchases')->name('purchases.')->group(function () {
+        Route::get('/', [DebugPurchaseController::class, 'index'])->name('index');
+        Route::get('/create', [DebugPurchaseController::class, 'create'])->name('create');
+        Route::get('/{id}/pay', [DebugPurchaseController::class, 'pay'])->name('pay');
+    });
+
     Route::get('/trial-balance', [DebugReportController::class, 'trialBalancePage'])->name('trial-balance');
     Route::get('/general-ledger', [DebugReportController::class, 'generalLedger'])->name('general-ledger');
     Route::get('/profit-loss', [DebugReportController::class, 'profitLossPage'])->name('profit-loss');
@@ -66,6 +85,7 @@ Route::prefix('debug')->name('debug.')->group(function () {
 
         Route::get('/invoices', [DebugInvoiceController::class, 'list'])->name('invoices.list');
         Route::post('/invoices', [DebugInvoiceController::class, 'store'])->name('invoices.store');
+        Route::post('/invoices/{id}/post', [DebugInvoiceController::class, 'post'])->name('invoices.post');
 
         Route::get('/payments', [DebugPaymentController::class, 'list'])->name('payments.list');
         Route::post('/payments', [DebugPaymentController::class, 'store'])->name('payments.store');

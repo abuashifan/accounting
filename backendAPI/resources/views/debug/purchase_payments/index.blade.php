@@ -1,11 +1,11 @@
 @extends('debug.layout')
 
-@section('title', 'Debug Invoices')
+@section('title', 'Debug Purchase Payments')
 
 @section('content')
     <div class="d-flex align-items-center justify-content-between mb-3">
-        <h1 class="h4 m-0">Invoices</h1>
-        <a class="btn btn-sm btn-primary" href="{{ route('debug.invoices.create') }}">Create Invoice</a>
+        <h1 class="h4 m-0">Purchase Payments</h1>
+        <a class="btn btn-sm btn-primary" href="{{ route('debug.purchase-payments.create') }}">Create Purchase Payment</a>
     </div>
 
     <div class="card">
@@ -14,20 +14,15 @@
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>Invoice No</th>
+                        <th>Payment No</th>
                         <th>Date</th>
+                        <th>Purchase Invoice</th>
                         <th>Amount</th>
-                        <th>Paid</th>
-                        <th>Status</th>
                         <th>Journal</th>
-                        <th>Posted At</th>
-                        <th></th>
                     </tr>
                 </thead>
-                <tbody id="invoiceTbody">
-                    <tr>
-                        <td colspan="9" class="text-muted">Loading...</td>
-                    </tr>
+                <tbody id="tbody">
+                    <tr><td colspan="6" class="text-muted">Loading...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -42,14 +37,12 @@
 @push('scripts')
     <script>
         (() => {
-            const tbody = document.getElementById('invoiceTbody');
+            const tbody = document.getElementById('tbody');
             const pageInfo = document.getElementById('pageInfo');
             const prevBtn = document.getElementById('prevPage');
             const nextBtn = document.getElementById('nextPage');
 
-            function qs() {
-                return new URLSearchParams(window.location.search);
-            }
+            function qs() { return new URLSearchParams(window.location.search); }
             function setQs(params) {
                 const url = new URL(window.location.href);
                 url.search = params.toString();
@@ -59,37 +52,31 @@
             async function load() {
                 const params = qs();
                 const page = params.get('page') || '1';
-
-                const url = new URL(`{{ route('debug.api.invoices.list') }}`, window.location.origin);
+                const url = new URL('/api/purchase-payments', window.location.origin);
                 url.searchParams.set('page', page);
 
-                const res = await window.DebugApi.apiJson(url.toString());
-                const paginator = res?.data;
+                const res = await window.DebugApi.apiFetch(url.toString());
+                const payload = await res.json().catch(() => null);
+                const paginator = payload?.data;
                 const rows = paginator?.data || [];
 
                 tbody.innerHTML = '';
-                if (rows.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="9" class="text-muted">No data</td></tr>`;
+                if (!rows.length) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="text-muted">No data</td></tr>`;
                     return;
                 }
 
-                for (const inv of rows) {
-                    const journalStatus = inv.journal_entry?.status || '-';
-                    const isDraft = String(journalStatus || '').toLowerCase() === 'draft';
-                    const canPost = isDraft && !inv.posted_at;
+                for (const p of rows) {
+                    const journalStatus = p.journal_entry?.status || '-';
+                    const invNo = p.purchase_invoice?.invoice_no || ('#' + p.purchase_invoice_id);
                     tbody.insertAdjacentHTML('beforeend', `
                         <tr>
-                            <td>${inv.id}</td>
-                            <td>${inv.invoice_no}</td>
-                            <td>${inv.invoice_date || '-'}</td>
-                            <td>${inv.amount}</td>
-                            <td>${inv.paid_amount ?? '-'}</td>
-                            <td><span class="badge text-bg-secondary">${inv.status || '-'}</span></td>
-                            <td><span class="badge ${isDraft ? 'text-bg-warning' : 'text-bg-success'}">${journalStatus || '-'}</span></td>
-                            <td>${inv.posted_at || '-'}</td>
-                            <td class="text-end">
-                                ${canPost ? `<button class="btn btn-sm btn-outline-primary" data-post="${inv.id}">Post</button>` : ''}
-                            </td>
+                            <td>${p.id}</td>
+                            <td>${p.payment_no}</td>
+                            <td>${p.payment_date || '-'}</td>
+                            <td>${invNo}</td>
+                            <td>${p.amount}</td>
+                            <td><span class="badge ${String(journalStatus).toLowerCase() === 'posted' ? 'text-bg-success' : 'text-bg-warning'}">${journalStatus}</span></td>
                         </tr>
                     `);
                 }
@@ -113,16 +100,7 @@
             });
 
             load().catch(() => {});
-
-            tbody.addEventListener('click', async (e) => {
-                const btn = e.target.closest('[data-post]');
-                if (!btn) return;
-                const id = btn.getAttribute('data-post');
-                if (!id) return;
-                await window.DebugApi.apiJson(`{{ url('/debug/api/invoices') }}/${id}/post`, { method: 'POST' });
-                window.DebugApi.showAlert('success', 'Invoice posted');
-                load().catch(() => {});
-            });
         })();
     </script>
 @endpush
+

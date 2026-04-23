@@ -4,15 +4,26 @@ namespace App\Domains\Accounting\Services;
 
 use App\Domains\Accounting\Models\Item;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\ValidationException;
 
 class ItemService
 {
-    public function list(int $perPage = 50): LengthAwarePaginator
+    public function list(int $perPage = 50, bool $includeStock = false): LengthAwarePaginator
     {
-        return Item::query()
+        $query = Item::query()
             ->orderBy('code')
-            ->paginate($perPage);
+            ->when($includeStock, function (Builder $q): Builder {
+                return $q->select('items.*')->selectSub(
+                    fn ($sub) => $sub
+                        ->from('stock_balances')
+                        ->selectRaw('COALESCE(SUM(stock_balances.quantity), 0)')
+                        ->whereColumn('stock_balances.item_id', 'items.id'),
+                    'current_qty'
+                );
+            });
+
+        return $query->paginate($perPage);
     }
 
     public function create(array $data): Item
@@ -53,4 +64,3 @@ class ItemService
         }
     }
 }
-

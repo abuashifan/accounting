@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             RbacSeeder::class,
             AccountSeeder::class,
+            InventorySeeder::class,
             AccountingPeriodSeeder::class,
         ]);
     }

@@ -33,9 +33,9 @@ class JournalService
      * @throws AuthorizationException
      * @throws ValidationException
      */
-    public function create(JournalData $data, ?string $reason = null): JournalEntry
+    public function create(JournalData $data, ?string $reason = null, ?bool $autoPostOverride = null): JournalEntry
     {
-        return DB::transaction(function () use ($data, $reason): JournalEntry {
+        return DB::transaction(function () use ($data, $reason, $autoPostOverride): JournalEntry {
             $user = $this->resolveUserOrFail();
             Gate::forUser($user)->authorize('journal.create');
             $period = AccountingPeriod::query()->findOrFail($data->accounting_period_id);
@@ -47,7 +47,9 @@ class JournalService
 
             $this->logAudit('journal.created', $journalEntry, $user, null, $this->snapshot($journalEntry), $reason);
 
-            if (AppSetting::getBool(self::KEY_JOURNAL_AUTO_POST, false)) {
+            $shouldAutoPost = $autoPostOverride ?? AppSetting::getBool(self::KEY_JOURNAL_AUTO_POST, false);
+
+            if ($shouldAutoPost) {
                 $autoReason = $reason ? "Auto-post: {$reason}" : 'Auto-post';
                 $journalEntry = $this->postEntry($journalEntry, $user, $autoReason);
             }
@@ -139,9 +141,25 @@ class JournalService
     }
 
     /**
+     * Post a draft journal entry without requiring `journal.update` authorization.
+     * Intended for internal auto-post workflows (same behavior as `create()` auto-post).
+     *
      * @throws ValidationException
      */
-    private function postEntry(JournalEntry $journalEntry, User $user, ?string $reason = null): JournalEntry
+    public function postAsSystem(JournalEntry $journalEntry, User $user, ?string $reason = null): JournalEntry
+    {
+        return DB::transaction(function () use ($journalEntry, $user, $reason): JournalEntry {
+            $refreshed = $journalEntry->fresh(['accountingPeriod', 'journalLines']);
+            $entry = $refreshed ?? $journalEntry->loadMissing(['accountingPeriod', 'journalLines']);
+
+            return $this->postEntry($entry, $user, $reason);
+        });
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    protected function postEntry(JournalEntry $journalEntry, User $user, ?string $reason = null): JournalEntry
     {
             if ($journalEntry->status !== 'draft') {
                 throw ValidationException::withMessages([

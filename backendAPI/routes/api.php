@@ -4,6 +4,9 @@ use App\Http\Controllers\Accounting\JournalController;
 use App\Http\Controllers\Accounting\AccountController;
 use App\Http\Controllers\Accounting\JournalSettingsController;
 use App\Http\Controllers\Accounting\ItemController;
+use App\Http\Controllers\Accounting\InvoiceController;
+use App\Http\Controllers\Accounting\PurchaseInvoiceController;
+use App\Http\Controllers\Accounting\PurchasePaymentController;
 use App\Http\Controllers\Accounting\ReportController;
 use App\Http\Controllers\Accounting\StockController;
 use App\Http\Controllers\Auth\TokenAuthController;
@@ -20,6 +23,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/items', [ItemController::class, 'store']);
     Route::get('/items/{id}', [ItemController::class, 'show']);
     Route::put('/items/{id}', [ItemController::class, 'update']);
+    Route::get('/items/{id}/history', [ItemController::class, 'history']);
+
+    Route::get('/invoices', [InvoiceController::class, 'index']);
+    Route::post('/invoices', [InvoiceController::class, 'store']);
+    Route::get('/invoices/{id}', [InvoiceController::class, 'show']);
+    Route::post('/invoices/{id}/post', [InvoiceController::class, 'post']);
+
+    Route::get('/purchase-invoices', [PurchaseInvoiceController::class, 'index']);
+    Route::post('/purchase-invoices', [PurchaseInvoiceController::class, 'store']);
+    Route::get('/purchase-invoices/{id}', [PurchaseInvoiceController::class, 'show']);
+    Route::post('/purchase-invoices/{id}/post', [PurchaseInvoiceController::class, 'post']);
+    Route::post('/purchase-invoices/{id}/payments', [PurchaseInvoiceController::class, 'recordPayment']);
+
+    Route::get('/purchase-payments', [PurchasePaymentController::class, 'index']);
+    Route::post('/purchase-payments', [PurchasePaymentController::class, 'store']);
+    Route::get('/purchase-payments/{id}', [PurchasePaymentController::class, 'show']);
 
     Route::get('/warehouses', [StockController::class, 'warehousesIndex']);
     Route::post('/warehouses', [StockController::class, 'warehousesStore']);
@@ -27,6 +46,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/warehouses/{id}', [StockController::class, 'warehousesUpdate']);
 
     Route::post('/stocks/adjustment', [StockController::class, 'adjustment']);
+    Route::post('/stocks/purchase', [StockController::class, 'purchase']);
     Route::post('/stocks/transfer', [StockController::class, 'transfer']);
     Route::get('/settings/journals', [JournalSettingsController::class, 'show']);
     Route::put('/settings/journals', [JournalSettingsController::class, 'update']);

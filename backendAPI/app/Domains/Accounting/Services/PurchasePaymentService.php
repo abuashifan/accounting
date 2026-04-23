@@ -4,11 +4,11 @@ namespace App\Domains\Accounting\Services;
 
 use App\Domains\Accounting\DTOs\JournalData;
 use App\Domains\Accounting\DTOs\JournalLineData;
-use App\Domains\Accounting\DTOs\PaymentData;
-use App\Models\AccountingPeriod;
+use App\Domains\Accounting\DTOs\PurchasePaymentData;
 use App\Models\Account;
-use App\Models\Invoice;
-use App\Models\Payment;
+use App\Models\AccountingPeriod;
+use App\Models\PurchaseInvoice;
+use App\Models\PurchasePayment;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -16,54 +16,56 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
-class PaymentService
+class PurchasePaymentService
 {
     public function __construct(
         private readonly JournalService $journalService,
     ) {}
 
-    public function record(PaymentData $data): Payment
+    public function record(PurchasePaymentData $data): PurchasePayment
     {
-        return DB::transaction(function () use ($data): Payment {
+        return DB::transaction(function () use ($data): PurchasePayment {
             $this->validateAmount($data->amount, 'amount');
 
             $user = $this->resolveUserOrFail();
-            /** @var Invoice $invoice */
-            $invoice = Invoice::query()->lockForUpdate()->findOrFail($data->invoice_id);
 
-            $this->ensurePaymentNumberIsUnique($data->payment_no);
+            /** @var PurchaseInvoice $invoice */
+            $invoice = PurchaseInvoice::query()->lockForUpdate()->findOrFail($data->purchase_invoice_id);
+
+            if (PurchasePayment::query()->where('payment_no', $data->payment_no)->exists()) {
+                throw ValidationException::withMessages([
+                    'payment_no' => ['Payment number already exists.'],
+                ]);
+            }
+
             $this->ensureNotOverpaid($invoice, $data->amount);
 
-            $cashAccount = $this->resolveAccountByCode(
-                (string) config('accounting.auto_journal.accounts.cash')
-            );
-            $receivableAccount = $this->resolveAccountByCode(
-                (string) config('accounting.auto_journal.accounts.accounts_receivable')
-            );
+            $payable = $this->resolveAccountByCode((string) config('accounting.auto_journal.accounts.accounts_payable'));
+            $creditAccount = Account::query()->findOrFail((int) $data->credit_account_id);
 
             $period = $this->resolvePeriodForDate($data->payment_date);
 
             $journalEntry = $this->journalService->create(
                 new JournalData(
                     date: $data->payment_date,
-                    description: $data->description ?? 'Payment '.$data->payment_no,
-                    accounting_period_id: $period->id,
+                    description: $data->description ?? 'Purchase payment '.$data->payment_no,
+                    accounting_period_id: (int) $period->id,
                     lines: [
-                        new JournalLineData(account_id: $cashAccount->id, debit: $data->amount, credit: 0),
-                        new JournalLineData(account_id: $receivableAccount->id, debit: 0, credit: $data->amount),
+                        new JournalLineData(account_id: (int) $payable->id, debit: $data->amount, credit: 0),
+                        new JournalLineData(account_id: (int) $creditAccount->id, debit: 0, credit: $data->amount),
                     ],
                 ),
-                reason: 'Payment',
+                reason: 'Purchase payment',
             );
 
-            /** @var Payment $payment */
-            $payment = Payment::query()->create([
+            /** @var PurchasePayment $payment */
+            $payment = PurchasePayment::query()->create([
                 'payment_no' => $data->payment_no,
-                'invoice_id' => $invoice->id,
+                'purchase_invoice_id' => $invoice->id,
                 'payment_date' => $data->payment_date,
                 'description' => $data->description,
                 'amount' => $data->amount,
-                'journal_entry_id' => $journalEntry->id,
+                'journal_entry_id' => (int) $journalEntry->id,
                 'created_by' => $user->id,
                 'updated_by' => $user->id,
             ]);
@@ -76,7 +78,7 @@ class PaymentService
                 'updated_by' => $user->id,
             ])->save();
 
-            return $payment->load(['invoice', 'journalEntry.journalLines.account']);
+            return $payment->load(['purchaseInvoice', 'journalEntry.journalLines.account']);
         });
     }
 
@@ -106,20 +108,11 @@ class PaymentService
         }
     }
 
-    private function ensurePaymentNumberIsUnique(string $paymentNo): void
-    {
-        if (Payment::query()->where('payment_no', $paymentNo)->exists()) {
-            throw ValidationException::withMessages([
-                'payment_no' => ['Payment number already exists.'],
-            ]);
-        }
-    }
-
-    private function ensureNotOverpaid(Invoice $invoice, float $amount): void
+    private function ensureNotOverpaid(PurchaseInvoice $invoice, float $amount): void
     {
         if (round((float) $invoice->paid_amount + $amount, 2) > round((float) $invoice->amount, 2)) {
             throw ValidationException::withMessages([
-                'amount' => ['Payment amount exceeds outstanding invoice balance.'],
+                'amount' => ['Payment amount exceeds outstanding purchase invoice balance.'],
             ]);
         }
     }
@@ -153,3 +146,4 @@ class PaymentService
         return $period;
     }
 }
+

@@ -10,27 +10,89 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="{{ route('debug.dashboard') }}">Debug UI</a>
-        <div class="navbar-nav">
-            <a class="nav-link" href="{{ route('debug.dashboard') }}">Dashboard</a>
-            <a class="nav-link" href="{{ route('debug.accounts') }}">Accounts</a>
-            <a class="nav-link" href="{{ route('debug.journals.index') }}">Journal</a>
-            <a class="nav-link" href="{{ route('debug.invoices.index') }}">Invoice</a>
-            <a class="nav-link" href="{{ route('debug.payments.index') }}">Payment</a>
-            <a class="nav-link" href="{{ route('debug.inventory.items') }}">Items</a>
-            <a class="nav-link" href="{{ route('debug.inventory.warehouses') }}">Warehouses</a>
-            <a class="nav-link" href="{{ route('debug.trial-balance') }}">Trial Balance</a>
-            <a class="nav-link" href="{{ route('debug.general-ledger') }}">General Ledger</a>
-            <a class="nav-link" href="{{ route('debug.profit-loss') }}">Profit &amp; Loss</a>
-            <a class="nav-link" href="{{ route('debug.balance-sheet') }}">Balance Sheet</a>
-            <a class="nav-link" href="{{ route('debug.cash-flow') }}">Cash Flow</a>
-            <a class="nav-link" href="{{ route('debug.inventory.stock-card') }}">Stock Card</a>
-            <a class="nav-link" href="{{ route('debug.inventory.adjustment') }}">Stock Adjustment</a>
-            <a class="nav-link" href="{{ route('debug.inventory.transfer') }}">Stock Transfer</a>
-            <a class="nav-link" href="{{ route('debug.settings.journals') }}">Settings</a>
-        </div>
-        <div class="d-flex ms-auto gap-2 align-items-center">
-            <input id="tokenPreview" class="form-control form-control-sm" style="width: 360px" readonly type="password" placeholder="Bearer token">
-            <button id="logoutBtn" class="btn btn-sm btn-outline-light">Logout</button>
+
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#debugNavbar"
+                aria-controls="debugNavbar" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="debugNavbar">
+            <div class="navbar-nav flex-wrap">
+                <a class="nav-link" href="{{ route('debug.dashboard') }}">Dashboard</a>
+
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Penjualan
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{{ route('debug.invoices.index') }}">Faktur Penjualan</a></li>
+                        <li><a class="dropdown-item" href="{{ route('debug.payments.index') }}">Pembayaran Penjualan</a></li>
+                    </ul>
+                </div>
+
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Pembelian
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{{ route('debug.purchase-invoices.index') }}">Faktur Pembelian</a></li>
+                        <li>
+                            <a class="dropdown-item" href="{{ route('debug.purchase-payments.index') }}">Pembayaran Pembelian</a>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Inventory
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{{ route('debug.inventory.items') }}">Items</a></li>
+                        <li><a class="dropdown-item" href="{{ route('debug.inventory.warehouses') }}">Warehouse</a></li>
+                        <li><a class="dropdown-item" href="{{ route('debug.inventory.adjustment') }}">Stock Adjustment</a></li>
+                        <li><a class="dropdown-item" href="{{ route('debug.inventory.transfer') }}">Stock Transfer</a></li>
+                    </ul>
+                </div>
+
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        General Ledger
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{{ route('debug.accounts') }}">Accounts</a></li>
+                        <li><a class="dropdown-item" href="{{ route('debug.journals.index') }}">Jurnal</a></li>
+                        <li><a class="dropdown-item" href="{{ route('debug.general-ledger') }}">General Ledger</a></li>
+                    </ul>
+                </div>
+
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Report
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{{ route('debug.trial-balance') }}">Trial Balance</a></li>
+                        <li><a class="dropdown-item" href="{{ route('debug.inventory.stock-card') }}">Stock Card</a></li>
+                        <li><a class="dropdown-item" href="{{ route('debug.profit-loss') }}">Profit &amp; Loss</a></li>
+                        <li><a class="dropdown-item" href="{{ route('debug.balance-sheet') }}">Balance Sheet</a></li>
+                        <li><a class="dropdown-item" href="{{ route('debug.cash-flow') }}">Cash Flow</a></li>
+                    </ul>
+                </div>
+
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Setting
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{{ route('debug.settings.journals') }}">Settings</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="d-flex ms-lg-auto gap-2 align-items-center mt-2 mt-lg-0">
+                <input id="tokenPreview" class="form-control form-control-sm d-none d-lg-block" style="width: 360px"
+                       readonly type="password" placeholder="Bearer token">
+                <button id="logoutBtn" class="btn btn-sm btn-outline-light w-100 w-lg-auto">Logout</button>
+            </div>
         </div>
     </div>
 </nav>

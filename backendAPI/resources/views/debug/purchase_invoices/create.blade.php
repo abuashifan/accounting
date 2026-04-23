@@ -1,21 +1,21 @@
 @extends('debug.layout')
 
-@section('title', 'Create Invoice')
+@section('title', 'Create Purchase Invoice')
 
 @section('content')
     <div class="d-flex align-items-center justify-content-between mb-3">
-        <h1 class="h4 m-0">Create Invoice</h1>
-        <a class="btn btn-sm btn-outline-secondary" href="{{ route('debug.invoices.index') }}">Back</a>
+        <h1 class="h4 m-0">Create Purchase Invoice</h1>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ route('debug.purchase-invoices.index') }}">Back</a>
     </div>
 
     <div class="card">
         <div class="card-body">
-            <div class="alert alert-warning small">
-                Sales invoice will create journal AR vs Revenue, and on posting it will also create COGS vs Inventory and reduce stock.
-                Accounts are taken from item setup + <code>config/accounting.php</code> (A/R).
+            <div class="alert alert-info small">
+                Faktur pembelian membuat jurnal <code>Persediaan(D) - Utang(C)</code> dan stok bertambah saat posting.
+                Jika <code>journals.auto_post=true</code>, maka posting dilakukan otomatis.
             </div>
 
-            <form id="invoiceForm">
+            <form id="form">
                 <div class="row g-3">
                     <div class="col-12 col-md-4">
                         <label class="form-label" for="invoice_no">Invoice No</label>
@@ -51,8 +51,8 @@
                         <input class="form-control form-control-sm" type="number" step="0.0001" min="0" id="quantity" required>
                     </div>
                     <div class="col-6 col-md-2">
-                        <label class="form-label" for="unit_price">Unit Price</label>
-                        <input class="form-control form-control-sm" type="number" step="0.01" min="0" id="unit_price" required>
+                        <label class="form-label" for="unit_cost">Unit Cost</label>
+                        <input class="form-control form-control-sm" type="number" step="0.000001" min="0" id="unit_cost" required>
                     </div>
                 </div>
 
@@ -70,7 +70,7 @@
             const itemSelect = document.getElementById('item_id');
             const whSelect = document.getElementById('warehouse_id');
             const qtyEl = document.getElementById('quantity');
-            const priceEl = document.getElementById('unit_price');
+            const costEl = document.getElementById('unit_cost');
             const totalEl = document.getElementById('total_preview');
 
             function escapeHtml(text) {
@@ -84,8 +84,8 @@
 
             function recalcTotal() {
                 const qty = Number(qtyEl.value || 0);
-                const price = Number(priceEl.value || 0);
-                totalEl.value = (Math.round(qty * price * 100) / 100).toFixed(2);
+                const cost = Number(costEl.value || 0);
+                totalEl.value = (Math.round(qty * cost * 100) / 100).toFixed(2);
             }
 
             async function loadItems() {
@@ -108,7 +108,7 @@
                 }
             }
 
-            document.getElementById('invoiceForm').addEventListener('submit', async (e) => {
+            document.getElementById('form').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const payload = {
                     invoice_no: document.getElementById('invoice_no').value,
@@ -118,25 +118,32 @@
                         item_id: Number(itemSelect.value || 0),
                         warehouse_id: Number(whSelect.value || 0),
                         quantity: Number(qtyEl.value || 0),
-                        unit_price: Number(priceEl.value || 0),
+                        unit_cost: Number(costEl.value || 0),
                     }]
                 };
 
-                const res = await window.DebugApi.apiJson('{{ route('debug.api.invoices.store') }}', {
+                const res = await window.DebugApi.apiFetch('/api/purchase-invoices', {
                     method: 'POST',
                     body: JSON.stringify(payload),
                 });
+                const body = await res.json().catch(() => null);
 
-                if (res?.success) {
-                    window.DebugApi.showAlert('success', 'Invoice created');
-                    window.location.href = '{{ route('debug.invoices.index') }}';
+                if (!res.ok || !body?.data) {
+                    const msg = body?.message || `Request failed (${res.status})`;
+                    const errors = body?.errors ? JSON.stringify(body.errors, null, 2) : null;
+                    window.DebugApi.showAlert('danger', msg, errors);
+                    return;
                 }
+
+                window.DebugApi.showAlert('success', 'Purchase invoice created');
+                window.location.href = '{{ route('debug.purchase-invoices.index') }}';
             });
 
             qtyEl.addEventListener('input', recalcTotal);
-            priceEl.addEventListener('input', recalcTotal);
+            costEl.addEventListener('input', recalcTotal);
 
             Promise.all([loadItems(), loadWarehouses()]).then(() => recalcTotal()).catch(() => {});
         })();
     </script>
 @endpush
+
