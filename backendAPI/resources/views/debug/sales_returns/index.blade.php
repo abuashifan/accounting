@@ -1,11 +1,11 @@
 @extends('debug.layout')
 
-@section('title', 'Debug Purchase Payments')
+@section('title', 'Debug Sales Returns')
 
 @section('content')
     <div class="d-flex align-items-center justify-content-between mb-3">
-        <h1 class="h4 m-0">Purchase Payments</h1>
-        <a class="btn btn-sm btn-primary" href="{{ route('debug.purchase-payments.create') }}">Create Purchase Payment</a>
+        <h1 class="h4 m-0">Sales Returns</h1>
+        <a class="btn btn-sm btn-primary" href="{{ route('debug.sales-returns.create') }}">Create Sales Return</a>
     </div>
 
     <div class="card">
@@ -14,16 +14,17 @@
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>Payment No</th>
+                        <th>Return No</th>
                         <th>Date</th>
-                        <th>Purchase Invoice</th>
+                        <th>Invoice</th>
                         <th>Amount</th>
                         <th>Journal</th>
+                        <th>Posted At</th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody id="tbody">
-                    <tr><td colspan="7" class="text-muted">Loading...</td></tr>
+                    <tr><td colspan="8" class="text-muted">Loading...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -53,7 +54,7 @@
             async function load() {
                 const params = qs();
                 const page = params.get('page') || '1';
-                const url = new URL('/api/purchase-payments', window.location.origin);
+                const url = new URL('/api/sales-returns', window.location.origin);
                 url.searchParams.set('page', page);
 
                 const res = await window.DebugApi.apiFetch(url.toString());
@@ -63,24 +64,28 @@
 
                 tbody.innerHTML = '';
                 if (!rows.length) {
-                    tbody.innerHTML = `<tr><td colspan="7" class="text-muted">No data</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="8" class="text-muted">No data</td></tr>`;
                     return;
                 }
 
-                for (const p of rows) {
-                    const journalStatus = p.journal_entry?.status || '-';
-                    const invNo = p.purchase_invoice?.invoice_no || ('#' + p.purchase_invoice_id);
+                for (const r of rows) {
+                    const journalStatus = r.journal_entry?.status || '-';
+                    const isDraft = String(journalStatus).toLowerCase() === 'draft';
+                    const canPost = isDraft && !r.posted_at;
+                    const invLabel = r.invoice?.invoice_no || ('#' + r.invoice_id);
                     tbody.insertAdjacentHTML('beforeend', `
                         <tr>
-                            <td>${p.id}</td>
-                            <td>${p.payment_no}</td>
-                            <td>${p.payment_date || '-'}</td>
-                            <td>${invNo}</td>
-                            <td>${p.amount}</td>
-                            <td><span class="badge ${String(journalStatus).toLowerCase() === 'posted' ? 'text-bg-success' : 'text-bg-warning'}">${journalStatus}</span></td>
+                            <td>${r.id}</td>
+                            <td>${r.return_no}</td>
+                            <td>${r.return_date || '-'}</td>
+                            <td>${invLabel}</td>
+                            <td>${r.amount}</td>
+                            <td><span class="badge ${isDraft ? 'text-bg-warning' : 'text-bg-success'}">${journalStatus}</span></td>
+                            <td>${r.posted_at || '-'}</td>
                             <td class="text-end">
-                                <a class="btn btn-sm btn-outline-secondary" href="{{ url('/debug/purchase-payments') }}/${p.id}/edit">Edit</a>
-                                <button class="btn btn-sm btn-outline-danger" type="button" data-delete="${p.id}">Delete</button>
+                                ${canPost ? `<button class="btn btn-sm btn-outline-primary" data-post="${r.id}">Post</button>` : ''}
+                                <a class="btn btn-sm btn-outline-secondary" href="{{ url('/debug/sales-returns') }}/${r.id}/edit">Edit</a>
+                                <button class="btn btn-sm btn-outline-danger" type="button" data-delete="${r.id}">Delete</button>
                             </td>
                         </tr>
                     `);
@@ -105,13 +110,32 @@
             });
 
             tbody.addEventListener('click', async (e) => {
+                const btn = e.target.closest('[data-post]');
+                if (!btn) return;
+                const id = btn.getAttribute('data-post');
+                if (!id) return;
+
+                const r = await window.DebugApi.apiFetch(`/api/sales-returns/${id}/post`, { method: 'POST' });
+                const b = await r.json().catch(() => null);
+                if (!r.ok || !b?.data) {
+                    const msg = b?.message || `Request failed (${r.status})`;
+                    const errors = b?.errors ? JSON.stringify(b.errors, null, 2) : null;
+                    window.DebugApi.showAlert('danger', msg, errors);
+                    return;
+                }
+
+                window.DebugApi.showAlert('success', 'Sales return posted');
+                load().catch(() => {});
+            });
+
+            tbody.addEventListener('click', async (e) => {
                 const btn = e.target.closest('[data-delete]');
                 if (!btn) return;
                 const id = btn.getAttribute('data-delete');
                 if (!id) return;
-                if (!confirm(`Delete purchase payment #${id}?`)) return;
+                if (!confirm(`Delete sales return #${id}?`)) return;
 
-                const r = await window.DebugApi.apiFetch(`/api/purchase-payments/${id}`, { method: 'DELETE' });
+                const r = await window.DebugApi.apiFetch(`/api/sales-returns/${id}`, { method: 'DELETE' });
                 const b = await r.json().catch(() => null);
                 if (!r.ok) {
                     const msg = b?.message || `Request failed (${r.status})`;
@@ -120,7 +144,7 @@
                     return;
                 }
 
-                window.DebugApi.showAlert('success', 'Purchase payment deleted');
+                window.DebugApi.showAlert('success', 'Sales return deleted');
                 load().catch(() => {});
             });
 
@@ -128,3 +152,4 @@
         })();
     </script>
 @endpush
+

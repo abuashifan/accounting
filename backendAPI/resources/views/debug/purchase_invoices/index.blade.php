@@ -85,6 +85,8 @@
                             <td>${inv.posted_at || '-'}</td>
                             <td class="text-end">
                                 ${canPost ? `<button class="btn btn-sm btn-outline-primary" data-post="${inv.id}">Post</button>` : ''}
+                                <a class="btn btn-sm btn-outline-secondary" href="{{ url('/debug/purchase-invoices') }}/${inv.id}/edit">Edit</a>
+                                <button class="btn btn-sm btn-outline-danger" type="button" data-delete="${inv.id}">Delete</button>
                             </td>
                         </tr>
                     `);
@@ -127,8 +129,27 @@
                 load().catch(() => {});
             });
 
+            tbody.addEventListener('click', async (e) => {
+                const btn = e.target.closest('[data-delete]');
+                if (!btn) return;
+                const id = btn.getAttribute('data-delete');
+                if (!id) return;
+                if (!confirm(`Delete purchase invoice #${id}?`)) return;
+
+                const r = await window.DebugApi.apiFetch(`/api/purchase-invoices/${id}`, { method: 'DELETE' });
+                const b = await r.json().catch(() => null);
+                if (!r.ok) {
+                    const msg = b?.message || `Request failed (${r.status})`;
+                    const errors = b?.errors ? JSON.stringify(b.errors, null, 2) : null;
+                    window.DebugApi.showAlert('danger', msg, errors);
+                    return;
+                }
+
+                window.DebugApi.showAlert('success', 'Purchase invoice deleted');
+                load().catch(() => {});
+            });
+
             load().catch(() => {});
         })();
     </script>
 @endpush
-

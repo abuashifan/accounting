@@ -9,8 +9,10 @@ use App\Http\Controllers\Debug\DebugJournalController;
 use App\Http\Controllers\Debug\DebugPaymentController;
 use App\Http\Controllers\Debug\DebugPurchaseInvoiceController;
 use App\Http\Controllers\Debug\DebugPurchasePaymentController;
+use App\Http\Controllers\Debug\DebugPurchaseReturnController;
 use App\Http\Controllers\Debug\DebugPurchaseController;
 use App\Http\Controllers\Debug\DebugReportController;
+use App\Http\Controllers\Debug\DebugSalesReturnController;
 use App\Http\Controllers\Debug\DebugSettingsController;
 use Illuminate\Support\Facades\Route;
 
@@ -46,6 +48,12 @@ Route::prefix('debug')->name('debug.')->group(function () {
         Route::get('/create', [DebugPaymentController::class, 'create'])->name('create');
     });
 
+    Route::prefix('sales-returns')->name('sales-returns.')->group(function () {
+        Route::get('/', [DebugSalesReturnController::class, 'index'])->name('index');
+        Route::get('/create', [DebugSalesReturnController::class, 'create'])->name('create');
+        Route::get('/{id}/edit', [DebugSalesReturnController::class, 'edit'])->name('edit');
+    });
+
     Route::prefix('purchase-invoices')->name('purchase-invoices.')->group(function () {
         Route::get('/', [DebugPurchaseInvoiceController::class, 'index'])->name('index');
         Route::get('/create', [DebugPurchaseInvoiceController::class, 'create'])->name('create');
@@ -56,6 +64,12 @@ Route::prefix('debug')->name('debug.')->group(function () {
         Route::get('/', [DebugPurchasePaymentController::class, 'index'])->name('index');
         Route::get('/create', [DebugPurchasePaymentController::class, 'create'])->name('create');
         Route::get('/{id}/edit', [DebugPurchasePaymentController::class, 'edit'])->name('edit');
+    });
+
+    Route::prefix('purchase-returns')->name('purchase-returns.')->group(function () {
+        Route::get('/', [DebugPurchaseReturnController::class, 'index'])->name('index');
+        Route::get('/create', [DebugPurchaseReturnController::class, 'create'])->name('create');
+        Route::get('/{id}/edit', [DebugPurchaseReturnController::class, 'edit'])->name('edit');
     });
 
     Route::prefix('purchases')->name('purchases.')->group(function () {

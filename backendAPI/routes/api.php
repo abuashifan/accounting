@@ -7,7 +7,9 @@ use App\Http\Controllers\Accounting\ItemController;
 use App\Http\Controllers\Accounting\InvoiceController;
 use App\Http\Controllers\Accounting\PurchaseInvoiceController;
 use App\Http\Controllers\Accounting\PurchasePaymentController;
+use App\Http\Controllers\Accounting\PurchaseReturnController;
 use App\Http\Controllers\Accounting\ReportController;
+use App\Http\Controllers\Accounting\SalesReturnController;
 use App\Http\Controllers\Accounting\StockController;
 use App\Http\Controllers\Auth\TokenAuthController;
 use Illuminate\Support\Facades\Route;
@@ -46,6 +48,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/purchase-payments/{id}', [PurchasePaymentController::class, 'show']);
     Route::put('/purchase-payments/{id}', [PurchasePaymentController::class, 'update']);
     Route::delete('/purchase-payments/{id}', [PurchasePaymentController::class, 'destroy']);
+
+    Route::get('/sales-returns', [SalesReturnController::class, 'index']);
+    Route::post('/sales-returns', [SalesReturnController::class, 'store']);
+    Route::get('/sales-returns/{id}', [SalesReturnController::class, 'show']);
+    Route::put('/sales-returns/{id}', [SalesReturnController::class, 'update']);
+    Route::delete('/sales-returns/{id}', [SalesReturnController::class, 'destroy']);
+    Route::post('/sales-returns/{id}/post', [SalesReturnController::class, 'post']);
+
+    Route::get('/purchase-returns', [PurchaseReturnController::class, 'index']);
+    Route::post('/purchase-returns', [PurchaseReturnController::class, 'store']);
+    Route::get('/purchase-returns/{id}', [PurchaseReturnController::class, 'show']);
+    Route::put('/purchase-returns/{id}', [PurchaseReturnController::class, 'update']);
+    Route::delete('/purchase-returns/{id}', [PurchaseReturnController::class, 'destroy']);
+    Route::post('/purchase-returns/{id}/post', [PurchaseReturnController::class, 'post']);
 
     Route::get('/warehouses', [StockController::class, 'warehousesIndex']);
     Route::post('/warehouses', [StockController::class, 'warehousesStore']);

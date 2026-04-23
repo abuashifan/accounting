@@ -27,6 +27,7 @@
                     <ul class="dropdown-menu">
                         <li><a class="dropdown-item" href="{{ route('debug.invoices.index') }}">Faktur Penjualan</a></li>
                         <li><a class="dropdown-item" href="{{ route('debug.payments.index') }}">Pembayaran Penjualan</a></li>
+                        <li><a class="dropdown-item" href="{{ route('debug.sales-returns.index') }}">Retur Penjualan</a></li>
                     </ul>
                 </div>
 
@@ -39,6 +40,7 @@
                         <li>
                             <a class="dropdown-item" href="{{ route('debug.purchase-payments.index') }}">Pembayaran Pembelian</a>
                         </li>
+                        <li><a class="dropdown-item" href="{{ route('debug.purchase-returns.index') }}">Retur Pembelian</a></li>
                     </ul>
                 </div>
 
