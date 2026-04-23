@@ -8,6 +8,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Accounting\ProductHistoryRequest;
 use App\Http\Requests\Accounting\StoreItemRequest;
 use App\Http\Requests\Accounting\UpdateItemRequest;
+use App\Models\Item;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -44,6 +46,23 @@ class ItemController extends Controller
         return response()->json([
             'data' => $service->update($id, $request->validated()),
         ]);
+    }
+
+    public function destroy(int $id): JsonResponse
+    {
+        try {
+            /** @var Item $item */
+            $item = Item::query()->findOrFail($id);
+            $item->delete();
+
+            return response()->json([
+                'data' => ['id' => $id],
+            ]);
+        } catch (QueryException $e) {
+            return response()->json([
+                'message' => 'Cannot delete item (still referenced by other records).',
+            ], 422);
+        }
     }
 
     public function history(int $id, ProductHistoryRequest $request, ProductHistoryService $service): JsonResponse

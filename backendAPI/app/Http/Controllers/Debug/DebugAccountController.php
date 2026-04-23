@@ -16,4 +16,11 @@ class DebugAccountController extends Controller
     {
         return view('debug.accounts.create');
     }
+
+    public function edit(int $id): View
+    {
+        return view('debug.accounts.edit', [
+            'id' => $id,
+        ]);
+    }
 }

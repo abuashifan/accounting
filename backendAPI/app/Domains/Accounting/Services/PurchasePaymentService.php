@@ -82,6 +82,131 @@ class PurchasePaymentService
         });
     }
 
+    /**
+     * Update a purchase payment (requires journal to be draft).
+     *
+     * @param array{
+     *   payment_no:string,
+     *   payment_date:string,
+     *   amount:float|int,
+     *   credit_account_id:int,
+     *   description?:string|null
+     * } $data
+     */
+    public function update(int $paymentId, array $data): PurchasePayment
+    {
+        return DB::transaction(function () use ($paymentId, $data): PurchasePayment {
+            $this->validateAmount((float) $data['amount'], 'amount');
+            $user = $this->resolveUserOrFail();
+
+            /** @var PurchasePayment $payment */
+            $payment = PurchasePayment::query()
+                ->with(['purchaseInvoice', 'journalEntry'])
+                ->lockForUpdate()
+                ->findOrFail($paymentId);
+
+            $journalEntry = $payment->journalEntry;
+            if (! $journalEntry || $journalEntry->status !== 'draft') {
+                throw ValidationException::withMessages([
+                    'journal_entry_id' => ['Only draft payments can be updated.'],
+                ]);
+            }
+
+            /** @var PurchaseInvoice $invoice */
+            $invoice = PurchaseInvoice::query()->lockForUpdate()->findOrFail((int) $payment->purchase_invoice_id);
+
+            $newNo = (string) $data['payment_no'];
+            if ($newNo !== (string) $payment->payment_no) {
+                if (PurchasePayment::query()
+                    ->where('payment_no', $newNo)
+                    ->where('id', '!=', $payment->id)
+                    ->exists()
+                ) {
+                    throw ValidationException::withMessages([
+                        'payment_no' => ['Payment number already exists.'],
+                    ]);
+                }
+            }
+
+            $newAmount = round((float) $data['amount'], 2);
+            $oldAmount = round((float) $payment->amount, 2);
+            $delta = round($newAmount - $oldAmount, 2);
+
+            if ($delta > 0) {
+                $this->ensureNotOverpaid($invoice, $delta);
+            }
+
+            $payable = $this->resolveAccountByCode((string) config('accounting.auto_journal.accounts.accounts_payable'));
+            $creditAccount = Account::query()->findOrFail((int) $data['credit_account_id']);
+            $period = $this->resolvePeriodForDate((string) $data['payment_date']);
+
+            $this->journalService->update(
+                (int) $journalEntry->id,
+                new JournalData(
+                    date: (string) $data['payment_date'],
+                    description: (string) (($data['description'] ?? null) ?: ('Purchase payment '.$newNo)),
+                    accounting_period_id: (int) $period->id,
+                    lines: [
+                        new JournalLineData(account_id: (int) $payable->id, debit: $newAmount, credit: 0),
+                        new JournalLineData(account_id: (int) $creditAccount->id, debit: 0, credit: $newAmount),
+                    ],
+                ),
+                reason: 'Update purchase payment',
+            );
+
+            $payment->forceFill([
+                'payment_no' => $newNo,
+                'payment_date' => (string) $data['payment_date'],
+                'amount' => $newAmount,
+                'description' => $data['description'] ?? null,
+                'updated_by' => $user->id,
+            ])->save();
+
+            $newPaid = round((float) $invoice->paid_amount + $delta, 2);
+            $newPaid = max(0.0, $newPaid);
+
+            $invoice->forceFill([
+                'paid_amount' => $newPaid,
+                'status' => $newPaid >= round((float) $invoice->amount, 2) ? 'paid' : ($newPaid > 0 ? 'partial' : 'unpaid'),
+                'updated_by' => $user->id,
+            ])->save();
+
+            return $payment->fresh(['purchaseInvoice', 'journalEntry.journalLines.account']);
+        });
+    }
+
+    public function delete(int $paymentId): void
+    {
+        DB::transaction(function () use ($paymentId): void {
+            $user = $this->resolveUserOrFail();
+
+            /** @var PurchasePayment $payment */
+            $payment = PurchasePayment::query()
+                ->with(['purchaseInvoice', 'journalEntry'])
+                ->lockForUpdate()
+                ->findOrFail($paymentId);
+
+            /** @var PurchaseInvoice $invoice */
+            $invoice = PurchaseInvoice::query()->lockForUpdate()->findOrFail((int) $payment->purchase_invoice_id);
+
+            $journalEntry = $payment->journalEntry;
+            if ($journalEntry) {
+                $this->journalService->void((int) $journalEntry->id, 'Delete purchase payment');
+            }
+
+            $newPaid = round((float) $invoice->paid_amount - round((float) $payment->amount, 2), 2);
+            $newPaid = max(0.0, $newPaid);
+
+            $invoice->forceFill([
+                'paid_amount' => $newPaid,
+                'status' => $newPaid >= round((float) $invoice->amount, 2) ? 'paid' : ($newPaid > 0 ? 'partial' : 'unpaid'),
+                'updated_by' => $user->id,
+            ])->save();
+
+            $payment->delete();
+        });
+    }
+
     private function resolveUserOrFail(): User
     {
         $requestUser = request()?->user();
@@ -146,4 +271,3 @@ class PurchasePaymentService
         return $period;
     }
 }
-

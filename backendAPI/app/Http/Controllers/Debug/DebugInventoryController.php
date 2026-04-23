@@ -18,6 +18,13 @@ class DebugInventoryController extends Controller
         return view('debug.inventory.items.create');
     }
 
+    public function itemsEdit(int $id): View
+    {
+        return view('debug.inventory.items.edit', [
+            'id' => $id,
+        ]);
+    }
+
     public function warehouses(): View
     {
         return view('debug.inventory.warehouses.index');
@@ -26,6 +33,13 @@ class DebugInventoryController extends Controller
     public function warehousesCreate(): View
     {
         return view('debug.inventory.warehouses.create');
+    }
+
+    public function warehousesEdit(int $id): View
+    {
+        return view('debug.inventory.warehouses.edit', [
+            'id' => $id,
+        ]);
     }
 
     public function stockCard(): View

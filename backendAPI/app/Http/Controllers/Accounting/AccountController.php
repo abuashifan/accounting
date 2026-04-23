@@ -9,6 +9,7 @@ use App\Http\Requests\Accounting\UpdateAccountRequest;
 use App\Models\Account;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Database\QueryException;
 
 class AccountController extends Controller
 {
@@ -40,6 +41,15 @@ class AccountController extends Controller
         ], 201);
     }
 
+    public function show(int $id): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'data' => Account::query()->findOrFail($id),
+            'message' => 'OK',
+        ]);
+    }
+
     public function update(int $id, UpdateAccountRequest $request, AccountService $service): JsonResponse
     {
         $account = $service->update($id, $request->validated());
@@ -49,5 +59,25 @@ class AccountController extends Controller
             'data' => $account,
             'message' => 'Account updated',
         ]);
+    }
+
+    public function destroy(int $id): JsonResponse
+    {
+        try {
+            /** @var Account $account */
+            $account = Account::query()->findOrFail($id);
+            $account->delete();
+
+            return response()->json([
+                'success' => true,
+                'data' => ['id' => $id],
+                'message' => 'Account deleted',
+            ]);
+        } catch (QueryException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot delete account (still referenced by other records).',
+            ], 422);
+        }
     }
 }

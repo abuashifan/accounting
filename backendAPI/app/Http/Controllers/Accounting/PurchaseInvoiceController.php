@@ -8,6 +8,7 @@ use App\Domains\Accounting\Services\PurchasePaymentService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Accounting\RecordPurchasePaymentRequest;
 use App\Http\Requests\Accounting\StorePurchaseInvoiceRequest;
+use App\Http\Requests\Accounting\UpdatePurchaseInvoiceRequest;
 use App\Models\PurchaseInvoice;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -56,6 +57,24 @@ class PurchaseInvoiceController extends Controller
         ]);
     }
 
+    public function update(int $id, UpdatePurchaseInvoiceRequest $request, PurchaseInvoiceService $service): JsonResponse
+    {
+        $invoice = $service->update($id, $request->validated());
+
+        return response()->json([
+            'data' => $invoice,
+        ]);
+    }
+
+    public function destroy(int $id, PurchaseInvoiceService $service): JsonResponse
+    {
+        $service->delete($id);
+
+        return response()->json([
+            'data' => ['id' => $id],
+        ]);
+    }
+
     public function recordPayment(
         int $id,
         RecordPurchasePaymentRequest $request,
@@ -77,4 +96,3 @@ class PurchaseInvoiceController extends Controller
         ], 201);
     }
 }
-

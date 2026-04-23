@@ -17,12 +17,15 @@ Route::post('/auth/token', [TokenAuthController::class, 'issueToken']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [TokenAuthController::class, 'logout']);
     Route::get('/accounts', [AccountController::class, 'index']);
+    Route::get('/accounts/{id}', [AccountController::class, 'show']);
     Route::post('/accounts', [AccountController::class, 'store']);
     Route::put('/accounts/{id}', [AccountController::class, 'update']);
+    Route::delete('/accounts/{id}', [AccountController::class, 'destroy']);
     Route::get('/items', [ItemController::class, 'index']);
     Route::post('/items', [ItemController::class, 'store']);
     Route::get('/items/{id}', [ItemController::class, 'show']);
     Route::put('/items/{id}', [ItemController::class, 'update']);
+    Route::delete('/items/{id}', [ItemController::class, 'destroy']);
     Route::get('/items/{id}/history', [ItemController::class, 'history']);
 
     Route::get('/invoices', [InvoiceController::class, 'index']);
@@ -33,17 +36,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/purchase-invoices', [PurchaseInvoiceController::class, 'index']);
     Route::post('/purchase-invoices', [PurchaseInvoiceController::class, 'store']);
     Route::get('/purchase-invoices/{id}', [PurchaseInvoiceController::class, 'show']);
+    Route::put('/purchase-invoices/{id}', [PurchaseInvoiceController::class, 'update']);
     Route::post('/purchase-invoices/{id}/post', [PurchaseInvoiceController::class, 'post']);
+    Route::delete('/purchase-invoices/{id}', [PurchaseInvoiceController::class, 'destroy']);
     Route::post('/purchase-invoices/{id}/payments', [PurchaseInvoiceController::class, 'recordPayment']);
 
     Route::get('/purchase-payments', [PurchasePaymentController::class, 'index']);
     Route::post('/purchase-payments', [PurchasePaymentController::class, 'store']);
     Route::get('/purchase-payments/{id}', [PurchasePaymentController::class, 'show']);
+    Route::put('/purchase-payments/{id}', [PurchasePaymentController::class, 'update']);
+    Route::delete('/purchase-payments/{id}', [PurchasePaymentController::class, 'destroy']);
 
     Route::get('/warehouses', [StockController::class, 'warehousesIndex']);
     Route::post('/warehouses', [StockController::class, 'warehousesStore']);
     Route::get('/warehouses/{id}', [StockController::class, 'warehousesShow']);
     Route::put('/warehouses/{id}', [StockController::class, 'warehousesUpdate']);
+    Route::delete('/warehouses/{id}', [StockController::class, 'warehousesDestroy']);
 
     Route::post('/stocks/adjustment', [StockController::class, 'adjustment']);
     Route::post('/stocks/purchase', [StockController::class, 'purchase']);

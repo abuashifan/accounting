@@ -26,6 +26,7 @@ Route::prefix('debug')->name('debug.')->group(function () {
 
     Route::get('/accounts', [DebugAccountController::class, 'index'])->name('accounts');
     Route::get('/accounts/create', [DebugAccountController::class, 'create'])->name('accounts.create');
+    Route::get('/accounts/{id}/edit', [DebugAccountController::class, 'edit'])->name('accounts.edit');
 
     Route::prefix('journals')->name('journals.')->group(function () {
         Route::get('/', [DebugJournalController::class, 'index'])->name('index');
@@ -48,11 +49,13 @@ Route::prefix('debug')->name('debug.')->group(function () {
     Route::prefix('purchase-invoices')->name('purchase-invoices.')->group(function () {
         Route::get('/', [DebugPurchaseInvoiceController::class, 'index'])->name('index');
         Route::get('/create', [DebugPurchaseInvoiceController::class, 'create'])->name('create');
+        Route::get('/{id}/edit', [DebugPurchaseInvoiceController::class, 'edit'])->name('edit');
     });
 
     Route::prefix('purchase-payments')->name('purchase-payments.')->group(function () {
         Route::get('/', [DebugPurchasePaymentController::class, 'index'])->name('index');
         Route::get('/create', [DebugPurchasePaymentController::class, 'create'])->name('create');
+        Route::get('/{id}/edit', [DebugPurchasePaymentController::class, 'edit'])->name('edit');
     });
 
     Route::prefix('purchases')->name('purchases.')->group(function () {
@@ -70,8 +73,10 @@ Route::prefix('debug')->name('debug.')->group(function () {
     Route::prefix('inventory')->name('inventory.')->group(function () {
         Route::get('/items', [DebugInventoryController::class, 'items'])->name('items');
         Route::get('/items/create', [DebugInventoryController::class, 'itemsCreate'])->name('items.create');
+        Route::get('/items/{id}/edit', [DebugInventoryController::class, 'itemsEdit'])->name('items.edit');
         Route::get('/warehouses', [DebugInventoryController::class, 'warehouses'])->name('warehouses');
         Route::get('/warehouses/create', [DebugInventoryController::class, 'warehousesCreate'])->name('warehouses.create');
+        Route::get('/warehouses/{id}/edit', [DebugInventoryController::class, 'warehousesEdit'])->name('warehouses.edit');
         Route::get('/stock-card', [DebugInventoryController::class, 'stockCard'])->name('stock-card');
         Route::get('/adjustment', [DebugInventoryController::class, 'adjustment'])->name('adjustment');
         Route::get('/transfer', [DebugInventoryController::class, 'transfer'])->name('transfer');

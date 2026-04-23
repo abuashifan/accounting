@@ -12,6 +12,7 @@ use App\Http\Requests\Accounting\StockTransferRequest;
 use App\Http\Requests\Accounting\StoreWarehouseRequest;
 use App\Http\Requests\Accounting\UpdateWarehouseRequest;
 use App\Models\Warehouse;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 
 class StockController extends Controller
@@ -48,6 +49,23 @@ class StockController extends Controller
         return response()->json([
             'data' => $warehouse->fresh(),
         ]);
+    }
+
+    public function warehousesDestroy(int $id): JsonResponse
+    {
+        try {
+            /** @var Warehouse $warehouse */
+            $warehouse = Warehouse::query()->findOrFail($id);
+            $warehouse->delete();
+
+            return response()->json([
+                'data' => ['id' => $id],
+            ]);
+        } catch (QueryException $e) {
+            return response()->json([
+                'message' => 'Cannot delete warehouse (still referenced by other records).',
+            ], 422);
+        }
     }
 
     public function adjustment(StockAdjustmentRequest $request, StockAdjustmentService $service): JsonResponse

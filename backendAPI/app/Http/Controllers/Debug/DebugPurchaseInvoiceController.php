@@ -16,5 +16,11 @@ class DebugPurchaseInvoiceController extends Controller
     {
         return view('debug.purchase_invoices.create');
     }
-}
 
+    public function edit(int $id): View
+    {
+        return view('debug.purchase_invoices.edit', [
+            'id' => $id,
+        ]);
+    }
+}

@@ -16,6 +16,7 @@
             <table class="table table-sm table-striped mb-0">
                 <thead>
                     <tr>
+                        <th>ID</th>
                         <th>Code</th>
                         <th>Name</th>
                         <th>Type</th>
@@ -24,10 +25,11 @@
                         <th>Cost Method</th>
                         <th class="text-end">Selling Price</th>
                         <th>Active</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody id="tbody">
-                    <tr><td colspan="8" class="text-muted">Loading...</td></tr>
+                    <tr><td colspan="10" class="text-muted">Loading...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -65,13 +67,14 @@
                 const items = payload.data.data || [];
                 tbody.innerHTML = '';
                 if (!items.length) {
-                    tbody.innerHTML = '<tr><td colspan="8" class="text-muted">No items</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="10" class="text-muted">No items</td></tr>';
                     return;
                 }
 
                 for (const item of items) {
                     tbody.insertAdjacentHTML('beforeend', `
                         <tr>
+                            <td>${escapeHtml(item.id)}</td>
                             <td>${escapeHtml(item.code)}</td>
                             <td>${escapeHtml(item.name)}</td>
                             <td>${escapeHtml(item.type)}</td>
@@ -80,12 +83,36 @@
                             <td>${escapeHtml(item.cost_method)}</td>
                             <td class="text-end">${escapeHtml(item.selling_price)}</td>
                             <td>${item.is_active ? 'Yes' : 'No'}</td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-outline-secondary" href="{{ url('/debug/inventory/items') }}/${item.id}/edit">Edit</a>
+                                <button class="btn btn-sm btn-outline-danger" type="button" data-delete="${item.id}">Delete</button>
+                            </td>
                         </tr>
                     `);
                 }
             }
 
             document.getElementById('reloadBtn').addEventListener('click', () => load().catch(() => {}));
+
+            tbody.addEventListener('click', async (e) => {
+                const btn = e.target.closest('[data-delete]');
+                if (!btn) return;
+                const id = btn.getAttribute('data-delete');
+                if (!id) return;
+                if (!confirm(`Delete item #${id}?`)) return;
+
+                const r = await window.DebugApi.apiFetch(`/api/items/${id}`, { method: 'DELETE' });
+                const b = await r.json().catch(() => null);
+                if (!r.ok) {
+                    const msg = b?.message || `Request failed (${r.status})`;
+                    const errors = b?.errors ? JSON.stringify(b.errors, null, 2) : null;
+                    window.DebugApi.showAlert('danger', msg, errors);
+                    return;
+                }
+
+                window.DebugApi.showAlert('success', 'Item deleted');
+                load().catch(() => {});
+            });
             load().catch(() => {});
         })();
     </script>

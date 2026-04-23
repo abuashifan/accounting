@@ -6,6 +6,7 @@ use App\Domains\Accounting\DTOs\PurchasePaymentData;
 use App\Domains\Accounting\Services\PurchasePaymentService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Accounting\StorePurchasePaymentRequest;
+use App\Http\Requests\Accounting\UpdatePurchasePaymentRequest;
 use App\Models\PurchasePayment;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -53,5 +54,22 @@ class PurchasePaymentController extends Controller
             'data' => $payment,
         ]);
     }
-}
 
+    public function update(int $id, UpdatePurchasePaymentRequest $request, PurchasePaymentService $service): JsonResponse
+    {
+        $payment = $service->update($id, $request->validated());
+
+        return response()->json([
+            'data' => $payment,
+        ]);
+    }
+
+    public function destroy(int $id, PurchasePaymentService $service): JsonResponse
+    {
+        $service->delete($id);
+
+        return response()->json([
+            'data' => ['id' => $id],
+        ]);
+    }
+}
