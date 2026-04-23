@@ -11,7 +11,8 @@
     <div class="card">
         <div class="card-body">
             <div class="alert alert-info small">
-                Update pembayaran pembelian hanya bisa dilakukan jika jurnal pembayaran masih <code>draft</code>.
+                Recommended for posted transactions: <span class="fw-semibold">VOID/REVERSAL</span>.
+                Editing/deleting posted purchase payment is <span class="fw-semibold">dangerous</span> (admin setting + "I understand the risk").
             </div>
 
             <form id="form">
@@ -137,4 +138,3 @@
         })();
     </script>
 @endpush
-

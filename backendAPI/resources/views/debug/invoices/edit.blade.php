@@ -1,18 +1,19 @@
 @extends('debug.layout')
 
-@section('title', 'Edit Purchase Invoice')
+@section('title', 'Edit Invoice')
 
 @section('content')
     <div class="d-flex align-items-center justify-content-between mb-3">
-        <h1 class="h4 m-0">Edit Purchase Invoice #{{ $id }}</h1>
-        <a class="btn btn-sm btn-outline-secondary" href="{{ route('debug.purchase-invoices.index') }}">Back</a>
+        <h1 class="h4 m-0">Edit Invoice #{{ $id }}</h1>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ route('debug.invoices.index') }}">Back</a>
     </div>
 
     <div class="card">
         <div class="card-body">
-            <div class="alert alert-info small">
+            <div class="alert alert-warning small">
                 Recommended for posted transactions: <span class="fw-semibold">VOID/RETURN</span>.
-                Editing/deleting posted purchase invoice is <span class="fw-semibold">dangerous</span> (admin setting + "I understand the risk") and is blocked if it already has payments/returns.
+                Editing/deleting posted invoice is <span class="fw-semibold">dangerous</span> and requires admin setting + "I understand the risk".
+                Also: posted invoice cannot be edited/deleted if it already has payments or returns.
             </div>
 
             <form id="form">
@@ -51,14 +52,14 @@
                         <input class="form-control form-control-sm" type="number" step="0.0001" min="0" id="quantity" required>
                     </div>
                     <div class="col-6 col-md-2">
-                        <label class="form-label" for="unit_cost">Unit Cost</label>
-                        <input class="form-control form-control-sm" type="number" step="0.000001" min="0" id="unit_cost" required>
+                        <label class="form-label" for="unit_price">Unit Price</label>
+                        <input class="form-control form-control-sm" type="number" step="0.01" min="0" id="unit_price" required>
                     </div>
                 </div>
 
                 <div class="mt-3 d-flex gap-2">
                     <button class="btn btn-primary btn-sm" type="submit">Save</button>
-                    <a class="btn btn-outline-secondary btn-sm" href="{{ route('debug.purchase-invoices.index') }}">Cancel</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="{{ route('debug.invoices.index') }}">Cancel</a>
                 </div>
             </form>
         </div>
@@ -73,7 +74,7 @@
             const itemSelect = document.getElementById('item_id');
             const whSelect = document.getElementById('warehouse_id');
             const qtyEl = document.getElementById('quantity');
-            const costEl = document.getElementById('unit_cost');
+            const priceEl = document.getElementById('unit_price');
             const totalEl = document.getElementById('total_preview');
 
             function escapeHtml(text) {
@@ -87,8 +88,8 @@
 
             function recalcTotal() {
                 const qty = Number(qtyEl.value || 0);
-                const cost = Number(costEl.value || 0);
-                totalEl.value = (Math.round(qty * cost * 100) / 100).toFixed(2);
+                const price = Number(priceEl.value || 0);
+                totalEl.value = (Math.round(qty * price * 100) / 100).toFixed(2);
             }
 
             async function loadItems() {
@@ -112,7 +113,7 @@
             }
 
             async function loadInvoice() {
-                const res = await window.DebugApi.apiFetch(`/api/purchase-invoices/${invoiceId}`);
+                const res = await window.DebugApi.apiFetch(`/api/invoices/${invoiceId}`);
                 const payload = await res.json().catch(() => null);
                 const invoice = payload?.data;
 
@@ -127,12 +128,12 @@
                 document.getElementById('invoice_date').value = (invoice.invoice_date || '').slice(0, 10);
                 document.getElementById('description').value = invoice.description || '';
 
-                const line = (invoice.purchase_invoice_lines || [])[0] || null;
+                const line = (invoice.invoice_lines || [])[0] || null;
                 if (line) {
                     itemSelect.value = String(line.item_id || '');
                     whSelect.value = String(line.warehouse_id || '');
                     qtyEl.value = String(line.quantity ?? '');
-                    costEl.value = String(line.unit_cost ?? '');
+                    priceEl.value = String(line.unit_price ?? '');
                 }
 
                 recalcTotal();
@@ -149,11 +150,11 @@
                         item_id: Number(itemSelect.value || 0),
                         warehouse_id: Number(whSelect.value || 0),
                         quantity: Number(qtyEl.value || 0),
-                        unit_cost: Number(costEl.value || 0),
+                        unit_price: Number(priceEl.value || 0),
                     }]
                 };
 
-                const res = await window.DebugApi.apiFetch(`/api/purchase-invoices/${invoiceId}`, {
+                const res = await window.DebugApi.apiFetch(`/api/invoices/${invoiceId}`, {
                     method: 'PUT',
                     body: JSON.stringify(payload),
                 });
@@ -166,12 +167,12 @@
                     return;
                 }
 
-                window.DebugApi.showAlert('success', 'Purchase invoice updated');
-                window.location.href = '{{ route('debug.purchase-invoices.index') }}';
+                window.DebugApi.showAlert('success', 'Invoice updated');
+                window.location.href = '{{ route('debug.invoices.index') }}';
             });
 
             qtyEl.addEventListener('input', recalcTotal);
-            costEl.addEventListener('input', recalcTotal);
+            priceEl.addEventListener('input', recalcTotal);
 
             Promise.all([loadItems(), loadWarehouses()])
                 .then(() => loadInvoice())
@@ -179,3 +180,4 @@
         })();
     </script>
 @endpush
+

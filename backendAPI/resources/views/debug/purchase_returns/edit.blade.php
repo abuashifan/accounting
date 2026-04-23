@@ -11,7 +11,8 @@
     <div class="card">
         <div class="card-body">
             <div class="alert alert-info small">
-                Update retur pembelian hanya bisa dilakukan jika masih <code>draft</code> (belum diposting).
+                Recommended for posted transactions: <span class="fw-semibold">VOID/REVERSAL</span>.
+                Editing/deleting posted purchase return is <span class="fw-semibold">dangerous</span> (admin setting + "I understand the risk").
             </div>
 
             <form id="form">
@@ -184,4 +185,3 @@
         })();
     </script>
 @endpush
-

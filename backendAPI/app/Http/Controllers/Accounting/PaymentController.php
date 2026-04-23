@@ -2,21 +2,21 @@
 
 namespace App\Http\Controllers\Accounting;
 
-use App\Domains\Accounting\DTOs\PurchasePaymentData;
-use App\Domains\Accounting\Services\PurchasePaymentService;
+use App\Domains\Accounting\DTOs\PaymentData;
+use App\Domains\Accounting\Services\PaymentService;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Accounting\StorePurchasePaymentRequest;
-use App\Http\Requests\Accounting\UpdatePurchasePaymentRequest;
-use App\Models\PurchasePayment;
+use App\Http\Requests\Accounting\StorePaymentRequest;
+use App\Http\Requests\Accounting\UpdatePaymentRequest;
+use App\Models\Payment;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class PurchasePaymentController extends Controller
+class PaymentController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $payments = PurchasePayment::query()
-            ->with(['purchaseInvoice:id,invoice_no,invoice_date,amount,status', 'journalEntry:id,status'])
+        $payments = Payment::query()
+            ->with(['invoice:id,invoice_no,invoice_date,amount,status,posted_at', 'journalEntry:id,status'])
             ->orderByDesc('id')
             ->paginate((int) $request->integer('per_page', 20));
 
@@ -25,16 +25,15 @@ class PurchasePaymentController extends Controller
         ]);
     }
 
-    public function store(StorePurchasePaymentRequest $request, PurchasePaymentService $service): JsonResponse
+    public function store(StorePaymentRequest $request, PaymentService $service): JsonResponse
     {
         $v = $request->validated();
 
-        $payment = $service->record(new PurchasePaymentData(
+        $payment = $service->record(new PaymentData(
             payment_no: (string) $v['payment_no'],
-            purchase_invoice_id: (int) $v['purchase_invoice_id'],
+            invoice_id: (int) $v['invoice_id'],
             payment_date: (string) $v['payment_date'],
             amount: (float) $v['amount'],
-            credit_account_id: (int) $v['credit_account_id'],
             description: $v['description'] ?? null,
         ));
 
@@ -45,9 +44,9 @@ class PurchasePaymentController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        /** @var PurchasePayment $payment */
-        $payment = PurchasePayment::query()
-            ->with(['purchaseInvoice', 'journalEntry.journalLines.account'])
+        /** @var Payment $payment */
+        $payment = Payment::query()
+            ->with(['invoice', 'journalEntry.journalLines.account'])
             ->findOrFail($id);
 
         return response()->json([
@@ -55,7 +54,7 @@ class PurchasePaymentController extends Controller
         ]);
     }
 
-    public function update(int $id, UpdatePurchasePaymentRequest $request, PurchasePaymentService $service): JsonResponse
+    public function update(int $id, UpdatePaymentRequest $request, PaymentService $service): JsonResponse
     {
         $payment = $service->update($id, $request->validated());
 
@@ -64,7 +63,7 @@ class PurchasePaymentController extends Controller
         ]);
     }
 
-    public function destroy(int $id, PurchasePaymentService $service): JsonResponse
+    public function destroy(int $id, PaymentService $service): JsonResponse
     {
         $service->delete($id);
 
@@ -73,7 +72,7 @@ class PurchasePaymentController extends Controller
         ]);
     }
 
-    public function void(int $id, Request $request, PurchasePaymentService $service): JsonResponse
+    public function void(int $id, Request $request, PaymentService $service): JsonResponse
     {
         $validated = $request->validate([
             'void_reason' => ['nullable', 'string'],
@@ -86,3 +85,4 @@ class PurchasePaymentController extends Controller
         ]);
     }
 }
+

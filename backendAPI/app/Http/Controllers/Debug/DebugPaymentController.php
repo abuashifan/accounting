@@ -25,6 +25,11 @@ class DebugPaymentController extends Controller
         return view('debug.payments.create');
     }
 
+    public function edit(int $id): View
+    {
+        return view('debug.payments.edit', ['id' => $id]);
+    }
+
     public function list(Request $request): JsonResponse
     {
         $payments = Payment::query()
@@ -86,4 +91,3 @@ class DebugPaymentController extends Controller
         }
     }
 }
-

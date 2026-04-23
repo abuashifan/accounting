@@ -14,6 +14,7 @@ class AuthServiceProvider extends ServiceProvider
         Gate::define('journal.update', fn (User $user): bool => $user->hasPermission('journal.update'));
         Gate::define('journal.void', fn (User $user): bool => $user->hasPermission('journal.void'));
         Gate::define('journal.override_period', fn (User $user): bool => $user->hasPermission('journal.override_period'));
+        Gate::define('transactions.override_posted_edit_delete', fn (User $user): bool => $user->hasPermission('transactions.override_posted_edit_delete'));
         Gate::define('settings.manage', function (User $user): bool {
             if ($user->hasPermission('settings.manage')) {
                 return true;

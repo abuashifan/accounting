@@ -10,6 +10,7 @@ use App\Models\AppSetting;
 use App\Models\Item;
 use App\Models\PurchaseInvoice;
 use App\Models\PurchaseInvoiceLine;
+use App\Models\PurchaseReturn;
 use App\Models\StockBalance;
 use App\Models\User;
 use App\Models\Warehouse;
@@ -17,13 +18,17 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 class PurchaseInvoiceService
 {
+    private const KEY_ALLOW_ADMIN_EDIT_DELETE_POSTED = 'transactions.allow_admin_edit_delete_posted';
+
     public function __construct(
         private readonly JournalService $journalService,
         private readonly StockMovementService $stockMovementService,
+        private readonly StockReversalService $stockReversalService,
     ) {}
 
     /**
@@ -186,24 +191,45 @@ class PurchaseInvoiceService
                 ->lockForUpdate()
                 ->findOrFail($invoiceId);
 
-            if ($invoice->posted_at !== null) {
-                throw ValidationException::withMessages([
-                    'posted_at' => ['Cannot update a posted purchase invoice.'],
-                ]);
-            }
+            $wasPosted = $invoice->posted_at !== null;
 
-            if ($invoice->paid_amount > 0 || $invoice->purchasePayments->count() > 0) {
-                throw ValidationException::withMessages([
-                    'paid_amount' => ['Cannot update a purchase invoice that already has payments.'],
-                ]);
+            if ($wasPosted) {
+                $this->ensureDangerousEditDeleteAllowedOrFail($user);
+
+                if ($this->hasPostedDependencies($invoice)) {
+                    throw ValidationException::withMessages([
+                        'dependency' => ['Cannot edit/delete posted purchase invoice because it has payments/returns.'],
+                    ]);
+                }
+
+                // Dangerous: reverse and remove prior stock movements, void old journal, then re-apply as "posted".
+                $this->stockReversalService->reverseReference(
+                    referenceType: 'purchase_invoice',
+                    referenceId: (int) $invoice->id,
+                    movementTypes: ['purchase'],
+                    deleteOriginalMovements: true,
+                    reversalMovementType: null,
+                );
+
+                if ($invoice->journal_entry_id) {
+                    $this->journalService->void((int) $invoice->journal_entry_id, 'Dangerous update posted purchase invoice');
+                }
+            } else {
+                if ($invoice->paid_amount > 0 || $invoice->purchasePayments->count() > 0) {
+                    throw ValidationException::withMessages([
+                        'paid_amount' => ['Cannot update a purchase invoice that already has payments.'],
+                    ]);
+                }
+
+                $journalEntry = $invoice->journalEntry;
+                if (! $journalEntry || $journalEntry->status !== 'draft') {
+                    throw ValidationException::withMessages([
+                        'journal_entry_id' => ['Only draft purchase invoices can be updated.'],
+                    ]);
+                }
             }
 
             $journalEntry = $invoice->journalEntry;
-            if (! $journalEntry || $journalEntry->status !== 'draft') {
-                throw ValidationException::withMessages([
-                    'journal_entry_id' => ['Only draft purchase invoices can be updated.'],
-                ]);
-            }
 
             $newInvoiceNo = (string) $data['invoice_no'];
             if ($newInvoiceNo !== (string) $invoice->invoice_no) {
@@ -283,16 +309,33 @@ class PurchaseInvoiceService
             }
             $journalLines[] = new JournalLineData(account_id: (int) $payable->id, debit: 0, credit: $invoiceTotal);
 
-            $this->journalService->update(
-                (int) $journalEntry->id,
-                new JournalData(
-                    date: (string) $data['invoice_date'],
-                    description: (string) ($data['description'] ?? ('Purchase invoice '.$newInvoiceNo)),
-                    accounting_period_id: (int) $period->id,
-                    lines: $journalLines,
-                ),
-                reason: 'Update purchase invoice',
-            );
+            if ($invoice->posted_at === null) {
+                $this->journalService->update(
+                    (int) $journalEntry->id,
+                    new JournalData(
+                        date: (string) $data['invoice_date'],
+                        description: (string) ($data['description'] ?? ('Purchase invoice '.$newInvoiceNo)),
+                        accounting_period_id: (int) $period->id,
+                        lines: $journalLines,
+                    ),
+                    reason: 'Update purchase invoice',
+                );
+            } else {
+                $newJournalEntry = $this->journalService->create(
+                    new JournalData(
+                        date: (string) $data['invoice_date'],
+                        description: (string) ($data['description'] ?? ('Purchase invoice '.$newInvoiceNo)),
+                        accounting_period_id: (int) $period->id,
+                        lines: $journalLines,
+                    ),
+                    reason: 'Dangerous update purchase invoice (repost)',
+                    autoPostOverride: false,
+                );
+
+                $invoice->forceFill([
+                    'journal_entry_id' => (int) $newJournalEntry->id,
+                ]);
+            }
 
             $invoice->forceFill([
                 'invoice_no' => $newInvoiceNo,
@@ -301,6 +344,7 @@ class PurchaseInvoiceService
                 'amount' => $invoiceTotal,
                 'paid_amount' => 0,
                 'status' => 'unpaid',
+                'posted_at' => $wasPosted ? null : $invoice->posted_at,
                 'updated_by' => $user->id,
             ])->save();
 
@@ -308,6 +352,11 @@ class PurchaseInvoiceService
             foreach ($linePayload as $lp) {
                 $lp['purchase_invoice_id'] = $invoice->id;
                 PurchaseInvoiceLine::query()->create($lp);
+            }
+
+            if ($wasPosted) {
+                // Re-post to re-apply stock + post the new journal.
+                $this->postInternal((int) $invoice->id, $user, asSystem: false);
             }
 
             return $invoice->fresh(['purchaseInvoiceLines.item', 'purchaseInvoiceLines.warehouse', 'journalEntry.journalLines.account']);
@@ -326,9 +375,21 @@ class PurchaseInvoiceService
                 ->findOrFail($invoiceId);
 
             if ($invoice->posted_at !== null) {
-                throw ValidationException::withMessages([
-                    'posted_at' => ['Cannot delete a posted purchase invoice.'],
-                ]);
+                $this->ensureDangerousEditDeleteAllowedOrFail($user);
+
+                if ($this->hasPostedDependencies($invoice)) {
+                    throw ValidationException::withMessages([
+                        'dependency' => ['Cannot edit/delete posted purchase invoice because it has payments/returns.'],
+                    ]);
+                }
+
+                $this->stockReversalService->reverseReference(
+                    referenceType: 'purchase_invoice',
+                    referenceId: (int) $invoice->id,
+                    movementTypes: ['purchase'],
+                    deleteOriginalMovements: true,
+                    reversalMovementType: null,
+                );
             }
 
             if ($invoice->paid_amount > 0 || $invoice->purchasePayments->count() > 0) {
@@ -338,19 +399,71 @@ class PurchaseInvoiceService
             }
 
             $journalEntry = $invoice->journalEntry;
-            if (! $journalEntry || $journalEntry->status !== 'draft') {
-                throw ValidationException::withMessages([
-                    'journal_entry_id' => ['Only draft purchase invoices can be deleted.'],
-                ]);
+            if ($invoice->posted_at === null) {
+                if (! $journalEntry || $journalEntry->status !== 'draft') {
+                    throw ValidationException::withMessages([
+                        'journal_entry_id' => ['Only draft purchase invoices can be deleted.'],
+                    ]);
+                }
             }
 
-            $this->journalService->void((int) $journalEntry->id, 'Delete purchase invoice');
+            if ($journalEntry) {
+                $this->journalService->void((int) $journalEntry->id, $invoice->posted_at !== null ? 'Dangerous delete posted purchase invoice' : 'Delete purchase invoice');
+            }
 
             $invoice->forceFill([
                 'updated_by' => $user->id,
             ])->save();
 
             $invoice->delete();
+        });
+    }
+
+    public function void(int $invoiceId, ?string $reason = null): PurchaseInvoice
+    {
+        return DB::transaction(function () use ($invoiceId, $reason): PurchaseInvoice {
+            $user = $this->resolveUserOrFail();
+
+            /** @var PurchaseInvoice $invoice */
+            $invoice = PurchaseInvoice::query()
+                ->with(['purchaseInvoiceLines', 'purchasePayments', 'journalEntry'])
+                ->lockForUpdate()
+                ->findOrFail($invoiceId);
+
+            if ($invoice->voided_at !== null) {
+                throw ValidationException::withMessages([
+                    'voided_at' => ['Purchase invoice is already voided.'],
+                ]);
+            }
+
+            if ($this->hasPostedDependencies($invoice)) {
+                throw ValidationException::withMessages([
+                    'dependency' => ['Cannot void posted purchase invoice because it has payments/returns.'],
+                ]);
+            }
+
+            if ($invoice->posted_at !== null) {
+                $this->stockReversalService->reverseReference(
+                    referenceType: 'purchase_invoice',
+                    referenceId: (int) $invoice->id,
+                    movementTypes: ['purchase'],
+                    deleteOriginalMovements: false,
+                    reversalMovementType: 'void_purchase_invoice',
+                );
+            }
+
+            if ($invoice->journal_entry_id) {
+                $this->journalService->void((int) $invoice->journal_entry_id, $reason ?: 'Void purchase invoice');
+            }
+
+            $invoice->forceFill([
+                'voided_at' => now(),
+                'void_reason' => $reason,
+                'voided_by' => $user->id,
+                'updated_by' => $user->id,
+            ])->save();
+
+            return $invoice->fresh(['purchaseInvoiceLines.item', 'purchaseInvoiceLines.warehouse', 'journalEntry.journalLines.account']);
         });
     }
 
@@ -486,5 +599,23 @@ class PurchaseInvoiceService
         }
 
         throw (new ModelNotFoundException)->setModel(Account::class, [$accountCode]);
+    }
+
+    private function ensureDangerousEditDeleteAllowedOrFail(User $user): void
+    {
+        if (! AppSetting::getBool(self::KEY_ALLOW_ADMIN_EDIT_DELETE_POSTED, false)) {
+            throw new AuthorizationException('Editing/deleting posted transactions is disabled. Use VOID/RETURN instead.');
+        }
+
+        Gate::forUser($user)->authorize('transactions.override_posted_edit_delete');
+    }
+
+    private function hasPostedDependencies(PurchaseInvoice $invoice): bool
+    {
+        if ((float) $invoice->paid_amount > 0 || $invoice->purchasePayments()->count() > 0) {
+            return true;
+        }
+
+        return PurchaseReturn::query()->where('purchase_invoice_id', (int) $invoice->id)->exists();
     }
 }

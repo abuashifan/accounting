@@ -41,11 +41,13 @@ Route::prefix('debug')->name('debug.')->group(function () {
     Route::prefix('invoices')->name('invoices.')->group(function () {
         Route::get('/', [DebugInvoiceController::class, 'index'])->name('index');
         Route::get('/create', [DebugInvoiceController::class, 'create'])->name('create');
+        Route::get('/{id}/edit', [DebugInvoiceController::class, 'edit'])->name('edit');
     });
 
     Route::prefix('payments')->name('payments.')->group(function () {
         Route::get('/', [DebugPaymentController::class, 'index'])->name('index');
         Route::get('/create', [DebugPaymentController::class, 'create'])->name('create');
+        Route::get('/{id}/edit', [DebugPaymentController::class, 'edit'])->name('edit');
     });
 
     Route::prefix('sales-returns')->name('sales-returns.')->group(function () {

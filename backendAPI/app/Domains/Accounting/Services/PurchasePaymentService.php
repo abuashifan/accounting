@@ -7,6 +7,7 @@ use App\Domains\Accounting\DTOs\JournalLineData;
 use App\Domains\Accounting\DTOs\PurchasePaymentData;
 use App\Models\Account;
 use App\Models\AccountingPeriod;
+use App\Models\AppSetting;
 use App\Models\PurchaseInvoice;
 use App\Models\PurchasePayment;
 use App\Models\User;
@@ -14,10 +15,13 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 class PurchasePaymentService
 {
+    private const KEY_ALLOW_ADMIN_EDIT_DELETE_POSTED = 'transactions.allow_admin_edit_delete_posted';
+
     public function __construct(
         private readonly JournalService $journalService,
     ) {}
@@ -105,11 +109,30 @@ class PurchasePaymentService
                 ->lockForUpdate()
                 ->findOrFail($paymentId);
 
-            $journalEntry = $payment->journalEntry;
-            if (! $journalEntry || $journalEntry->status !== 'draft') {
+            if ($payment->voided_at !== null) {
                 throw ValidationException::withMessages([
-                    'journal_entry_id' => ['Only draft payments can be updated.'],
+                    'voided_at' => ['Voided payments cannot be updated.'],
                 ]);
+            }
+
+            $journalEntry = $payment->journalEntry;
+            $isPosted = $journalEntry && $journalEntry->status === 'posted';
+            $isDraft = $journalEntry && $journalEntry->status === 'draft';
+
+            if (! $journalEntry) {
+                throw ValidationException::withMessages([
+                    'journal_entry_id' => ['Payment has no journal entry.'],
+                ]);
+            }
+
+            if (! $isDraft && ! $isPosted) {
+                throw ValidationException::withMessages([
+                    'journal_entry_id' => ['Only draft/posted payments can be updated.'],
+                ]);
+            }
+
+            if ($isPosted) {
+                $this->ensureDangerousEditDeleteAllowedOrFail($user);
             }
 
             /** @var PurchaseInvoice $invoice */
@@ -140,19 +163,36 @@ class PurchasePaymentService
             $creditAccount = Account::query()->findOrFail((int) $data['credit_account_id']);
             $period = $this->resolvePeriodForDate((string) $data['payment_date']);
 
-            $this->journalService->update(
-                (int) $journalEntry->id,
-                new JournalData(
-                    date: (string) $data['payment_date'],
-                    description: (string) (($data['description'] ?? null) ?: ('Purchase payment '.$newNo)),
-                    accounting_period_id: (int) $period->id,
-                    lines: [
-                        new JournalLineData(account_id: (int) $payable->id, debit: $newAmount, credit: 0),
-                        new JournalLineData(account_id: (int) $creditAccount->id, debit: 0, credit: $newAmount),
-                    ],
-                ),
-                reason: 'Update purchase payment',
+            $journalData = new JournalData(
+                date: (string) $data['payment_date'],
+                description: (string) (($data['description'] ?? null) ?: ('Purchase payment '.$newNo)),
+                accounting_period_id: (int) $period->id,
+                lines: [
+                    new JournalLineData(account_id: (int) $payable->id, debit: $newAmount, credit: 0),
+                    new JournalLineData(account_id: (int) $creditAccount->id, debit: 0, credit: $newAmount),
+                ],
             );
+
+            if ($isDraft) {
+                $this->journalService->update(
+                    (int) $journalEntry->id,
+                    $journalData,
+                    reason: 'Update purchase payment',
+                );
+            } else {
+                // Dangerous: posted journal cannot be updated; void it and create a new posted journal.
+                $this->journalService->void((int) $journalEntry->id, 'Dangerous update posted purchase payment');
+
+                $newJournal = $this->journalService->create(
+                    $journalData,
+                    reason: 'Dangerous update purchase payment (repost)',
+                    autoPostOverride: true,
+                );
+
+                $payment->forceFill([
+                    'journal_entry_id' => (int) $newJournal->id,
+                ]);
+            }
 
             $payment->forceFill([
                 'payment_no' => $newNo,
@@ -186,12 +226,22 @@ class PurchasePaymentService
                 ->lockForUpdate()
                 ->findOrFail($paymentId);
 
+            if ($payment->voided_at !== null) {
+                throw ValidationException::withMessages([
+                    'voided_at' => ['Voided payments cannot be deleted.'],
+                ]);
+            }
+
             /** @var PurchaseInvoice $invoice */
             $invoice = PurchaseInvoice::query()->lockForUpdate()->findOrFail((int) $payment->purchase_invoice_id);
 
             $journalEntry = $payment->journalEntry;
+            if ($journalEntry && $journalEntry->status === 'posted') {
+                $this->ensureDangerousEditDeleteAllowedOrFail($user);
+            }
+
             if ($journalEntry) {
-                $this->journalService->void((int) $journalEntry->id, 'Delete purchase payment');
+                $this->journalService->void((int) $journalEntry->id, $journalEntry->status === 'posted' ? 'Dangerous delete posted purchase payment' : 'Delete purchase payment');
             }
 
             $newPaid = round((float) $invoice->paid_amount - round((float) $payment->amount, 2), 2);
@@ -204,6 +254,50 @@ class PurchasePaymentService
             ])->save();
 
             $payment->delete();
+        });
+    }
+
+    public function void(int $paymentId, ?string $reason = null): PurchasePayment
+    {
+        return DB::transaction(function () use ($paymentId, $reason): PurchasePayment {
+            $user = $this->resolveUserOrFail();
+
+            /** @var PurchasePayment $payment */
+            $payment = PurchasePayment::query()
+                ->with(['purchaseInvoice', 'journalEntry'])
+                ->lockForUpdate()
+                ->findOrFail($paymentId);
+
+            if ($payment->voided_at !== null) {
+                throw ValidationException::withMessages([
+                    'voided_at' => ['Purchase payment is already voided.'],
+                ]);
+            }
+
+            /** @var PurchaseInvoice $invoice */
+            $invoice = PurchaseInvoice::query()->lockForUpdate()->findOrFail((int) $payment->purchase_invoice_id);
+
+            if ($payment->journal_entry_id) {
+                $this->journalService->void((int) $payment->journal_entry_id, $reason ?: 'Void purchase payment');
+            }
+
+            $newPaid = round((float) $invoice->paid_amount - round((float) $payment->amount, 2), 2);
+            $newPaid = max(0.0, $newPaid);
+
+            $invoice->forceFill([
+                'paid_amount' => $newPaid,
+                'status' => $newPaid >= round((float) $invoice->amount, 2) ? 'paid' : ($newPaid > 0 ? 'partial' : 'unpaid'),
+                'updated_by' => $user->id,
+            ])->save();
+
+            $payment->forceFill([
+                'voided_at' => now(),
+                'void_reason' => $reason,
+                'voided_by' => $user->id,
+                'updated_by' => $user->id,
+            ])->save();
+
+            return $payment->fresh(['purchaseInvoice', 'journalEntry.journalLines.account']);
         });
     }
 
@@ -269,5 +363,14 @@ class PurchasePaymentService
         }
 
         return $period;
+    }
+
+    private function ensureDangerousEditDeleteAllowedOrFail(User $user): void
+    {
+        if (! AppSetting::getBool(self::KEY_ALLOW_ADMIN_EDIT_DELETE_POSTED, false)) {
+            throw new AuthorizationException('Editing/deleting posted transactions is disabled. Use VOID/RETURN instead.');
+        }
+
+        Gate::forUser($user)->authorize('transactions.override_posted_edit_delete');
     }
 }

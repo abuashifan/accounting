@@ -71,5 +71,17 @@ class PurchaseReturnController extends Controller
             'data' => $return,
         ]);
     }
-}
 
+    public function void(int $id, Request $request, PurchaseReturnService $service): JsonResponse
+    {
+        $validated = $request->validate([
+            'void_reason' => ['nullable', 'string'],
+        ]);
+
+        $return = $service->void($id, $validated['void_reason'] ?? null);
+
+        return response()->json([
+            'data' => $return,
+        ]);
+    }
+}

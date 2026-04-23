@@ -8,6 +8,19 @@
         <a class="btn btn-sm btn-primary" href="{{ route('debug.purchase-payments.create') }}">Create Purchase Payment</a>
     </div>
 
+    <div class="alert alert-warning small mb-3" id="dangerBox" style="display:none">
+        <div class="fw-semibold">Dangerous mode (posted edit/delete)</div>
+        <div class="mt-1">
+            Recommended for posted transactions: <span class="fw-semibold">VOID/REVERSAL</span>.
+            Editing/deleting posted transactions can break audit trail and GL.
+        </div>
+        <div class="form-check mt-2">
+            <input class="form-check-input" type="checkbox" id="dangerAck">
+            <label class="form-check-label" for="dangerAck">I understand the risk</label>
+        </div>
+        <div class="text-muted mt-1" id="dangerHint"></div>
+    </div>
+
     <div class="card">
         <div class="table-responsive">
             <table class="table table-sm table-striped mb-0">
@@ -42,6 +55,9 @@
             const pageInfo = document.getElementById('pageInfo');
             const prevBtn = document.getElementById('prevPage');
             const nextBtn = document.getElementById('nextPage');
+            const dangerBox = document.getElementById('dangerBox');
+            const dangerAck = document.getElementById('dangerAck');
+            const dangerHint = document.getElementById('dangerHint');
 
             function qs() { return new URLSearchParams(window.location.search); }
             function setQs(params) {
@@ -50,7 +66,34 @@
                 window.location.href = url.toString();
             }
 
+            async function initDangerUi() {
+                const settings = await window.DebugApi.getJournalSettings();
+                dangerBox.style.display = 'block';
+                dangerAck.checked = window.DebugApi.getDangerAck();
+                dangerAck.disabled = !settings.allow_admin_edit_delete_posted;
+                dangerHint.textContent = settings.allow_admin_edit_delete_posted
+                    ? 'Posted Edit/Delete buttons require this checkbox.'
+                    : 'Disabled by setting transactions.allow_admin_edit_delete_posted (admin-only).';
+
+                dangerAck.addEventListener('change', () => {
+                    if (dangerAck.checked) {
+                        const ok = confirm('Enable dangerous Edit/Delete buttons for posted transactions on this page?');
+                        if (!ok) {
+                            dangerAck.checked = false;
+                            window.DebugApi.setDangerAck(false);
+                            load().catch(() => {});
+                            return;
+                        }
+                    }
+                    window.DebugApi.setDangerAck(dangerAck.checked);
+                    load().catch(() => {});
+                });
+            }
+
             async function load() {
+                const settings = await window.DebugApi.getJournalSettings();
+                const allowPostedEditDelete = !!settings.allow_admin_edit_delete_posted && window.DebugApi.getDangerAck();
+
                 const params = qs();
                 const page = params.get('page') || '1';
                 const url = new URL('/api/purchase-payments', window.location.origin);
@@ -70,6 +113,9 @@
                 for (const p of rows) {
                     const journalStatus = p.journal_entry?.status || '-';
                     const invNo = p.purchase_invoice?.invoice_no || ('#' + p.purchase_invoice_id);
+                    const isPosted = String(journalStatus).toLowerCase() === 'posted';
+                    const isVoided = !!p.voided_at;
+                    const canDanger = !isPosted || allowPostedEditDelete;
                     tbody.insertAdjacentHTML('beforeend', `
                         <tr>
                             <td>${p.id}</td>
@@ -79,8 +125,9 @@
                             <td>${p.amount}</td>
                             <td><span class="badge ${String(journalStatus).toLowerCase() === 'posted' ? 'text-bg-success' : 'text-bg-warning'}">${journalStatus}</span></td>
                             <td class="text-end">
-                                <a class="btn btn-sm btn-outline-secondary" href="{{ url('/debug/purchase-payments') }}/${p.id}/edit">Edit</a>
-                                <button class="btn btn-sm btn-outline-danger" type="button" data-delete="${p.id}">Delete</button>
+                                ${isPosted && !isVoided ? `<button class="btn btn-sm btn-outline-warning" type="button" data-void="${p.id}">Void</button>` : ''}
+                                <a class="btn btn-sm btn-outline-secondary ${canDanger ? '' : 'disabled'}" ${canDanger ? `href="{{ url('/debug/purchase-payments') }}/${p.id}/edit"` : 'href="#" aria-disabled="true" tabindex="-1"'}>Edit</a>
+                                <button class="btn btn-sm btn-outline-danger" type="button" data-delete="${p.id}" ${canDanger ? '' : 'disabled'}>Delete</button>
                             </td>
                         </tr>
                     `);
@@ -107,6 +154,7 @@
             tbody.addEventListener('click', async (e) => {
                 const btn = e.target.closest('[data-delete]');
                 if (!btn) return;
+                if (btn.disabled) return;
                 const id = btn.getAttribute('data-delete');
                 if (!id) return;
                 if (!confirm(`Delete purchase payment #${id}?`)) return;
@@ -124,7 +172,34 @@
                 load().catch(() => {});
             });
 
-            load().catch(() => {});
+            tbody.addEventListener('click', async (e) => {
+                const btn = e.target.closest('[data-void]');
+                if (!btn) return;
+                const id = btn.getAttribute('data-void');
+                if (!id) return;
+
+                const reason = prompt('Void reason (optional):') || null;
+                if (!confirm(`Void purchase payment #${id}?`)) return;
+
+                const r = await window.DebugApi.apiFetch(`/api/purchase-payments/${id}/void`, {
+                    method: 'POST',
+                    body: JSON.stringify({ void_reason: reason }),
+                });
+                const b = await r.json().catch(() => null);
+                if (!r.ok || !b?.data) {
+                    const msg = b?.message || `Request failed (${r.status})`;
+                    const errors = b?.errors ? JSON.stringify(b.errors, null, 2) : null;
+                    window.DebugApi.showAlert('danger', msg, errors);
+                    return;
+                }
+
+                window.DebugApi.showAlert('success', 'Purchase payment voided');
+                load().catch(() => {});
+            });
+
+            initDangerUi()
+                .then(() => load())
+                .catch(() => load().catch(() => {}));
         })();
     </script>
 @endpush

@@ -24,6 +24,11 @@ class DebugInvoiceController extends Controller
         return view('debug.invoices.create');
     }
 
+    public function edit(int $id): View
+    {
+        return view('debug.invoices.edit', ['id' => $id]);
+    }
+
     public function list(Request $request): JsonResponse
     {
         $invoices = Invoice::query()

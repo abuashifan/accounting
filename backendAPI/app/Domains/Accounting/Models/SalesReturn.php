@@ -21,6 +21,9 @@ class SalesReturn extends Model
         'description',
         'amount',
         'posted_at',
+        'voided_at',
+        'void_reason',
+        'voided_by',
         'journal_entry_id',
         'created_by',
         'updated_by',
@@ -32,6 +35,7 @@ class SalesReturn extends Model
             'return_date' => 'date',
             'amount' => 'decimal:2',
             'posted_at' => 'datetime',
+            'voided_at' => 'datetime',
         ];
     }
 
@@ -60,4 +64,3 @@ class SalesReturn extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 }
-

@@ -17,6 +17,7 @@ class RbacSeeder extends Seeder
             'journal.void' => 'Void jurnal',
             'journal.override_period' => 'Override period closed',
             'settings.manage' => 'Kelola pengaturan aplikasi',
+            'transactions.override_posted_edit_delete' => 'Override edit/delete transaksi posted (dangerous)',
         ];
 
         foreach ($permissions as $name => $label) {

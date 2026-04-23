@@ -22,6 +22,9 @@ class PurchaseInvoice extends Model
         'paid_amount',
         'status',
         'posted_at',
+        'voided_at',
+        'void_reason',
+        'voided_by',
         'journal_entry_id',
         'created_by',
         'updated_by',
@@ -34,6 +37,7 @@ class PurchaseInvoice extends Model
             'amount' => 'decimal:2',
             'paid_amount' => 'decimal:2',
             'posted_at' => 'datetime',
+            'voided_at' => 'datetime',
         ];
     }
 
@@ -62,4 +66,3 @@ class PurchaseInvoice extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 }
-

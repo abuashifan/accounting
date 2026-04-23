@@ -168,12 +168,44 @@
         return payload;
     }
 
+    let journalSettingsCache = null;
+    async function getJournalSettings(force = false) {
+        if (!force && journalSettingsCache) {
+            return journalSettingsCache;
+        }
+
+        try {
+            const res = await apiFetch('/api/settings/journals');
+            const payload = await res.json().catch(() => null);
+            const data = payload?.data || {};
+            journalSettingsCache = {
+                auto_post: !!data.auto_post,
+                allow_admin_edit_delete_posted: !!data.allow_admin_edit_delete_posted,
+            };
+            return journalSettingsCache;
+        } catch (e) {
+            journalSettingsCache = { auto_post: false, allow_admin_edit_delete_posted: false };
+            return journalSettingsCache;
+        }
+    }
+
+    const dangerAckKey = 'dangerous_transactions_ack';
+    function getDangerAck() {
+        return localStorage.getItem(dangerAckKey) === '1';
+    }
+    function setDangerAck(value) {
+        localStorage.setItem(dangerAckKey, value ? '1' : '0');
+    }
+
     window.DebugApi = {
         showAlert,
         getToken,
         setToken,
         apiFetch,
         apiJson,
+        getJournalSettings,
+        getDangerAck,
+        setDangerAck,
     };
 
     const token = getToken();

@@ -122,15 +122,21 @@
                     }]
                 };
 
-                const res = await window.DebugApi.apiJson('{{ route('debug.api.invoices.store') }}', {
+                const res = await window.DebugApi.apiFetch('/api/invoices', {
                     method: 'POST',
                     body: JSON.stringify(payload),
                 });
+                const body = await res.json().catch(() => null);
 
-                if (res?.success) {
-                    window.DebugApi.showAlert('success', 'Invoice created');
-                    window.location.href = '{{ route('debug.invoices.index') }}';
+                if (!res.ok || !body?.data) {
+                    const msg = body?.message || `Request failed (${res.status})`;
+                    const errors = body?.errors ? JSON.stringify(body.errors, null, 2) : null;
+                    window.DebugApi.showAlert('danger', msg, errors);
+                    return;
                 }
+
+                window.DebugApi.showAlert('success', 'Invoice created');
+                window.location.href = '{{ route('debug.invoices.index') }}';
             });
 
             qtyEl.addEventListener('input', recalcTotal);

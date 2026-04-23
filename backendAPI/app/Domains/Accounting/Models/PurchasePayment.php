@@ -19,6 +19,9 @@ class PurchasePayment extends Model
         'payment_date',
         'description',
         'amount',
+        'voided_at',
+        'void_reason',
+        'voided_by',
         'journal_entry_id',
         'created_by',
         'updated_by',
@@ -29,6 +32,7 @@ class PurchasePayment extends Model
         return [
             'payment_date' => 'date',
             'amount' => 'decimal:2',
+            'voided_at' => 'datetime',
         ];
     }
 
@@ -52,4 +56,3 @@ class PurchasePayment extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 }
-

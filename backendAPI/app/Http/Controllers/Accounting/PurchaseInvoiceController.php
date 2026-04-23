@@ -75,6 +75,19 @@ class PurchaseInvoiceController extends Controller
         ]);
     }
 
+    public function void(int $id, Request $request, PurchaseInvoiceService $service): JsonResponse
+    {
+        $validated = $request->validate([
+            'void_reason' => ['nullable', 'string'],
+        ]);
+
+        $invoice = $service->void($id, $validated['void_reason'] ?? null);
+
+        return response()->json([
+            'data' => $invoice,
+        ]);
+    }
+
     public function recordPayment(
         int $id,
         RecordPurchasePaymentRequest $request,

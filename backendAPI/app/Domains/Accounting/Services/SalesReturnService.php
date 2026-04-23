@@ -22,13 +22,17 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 class SalesReturnService
 {
+    private const KEY_ALLOW_ADMIN_EDIT_DELETE_POSTED = 'transactions.allow_admin_edit_delete_posted';
+
     public function __construct(
         private readonly JournalService $journalService,
         private readonly StockMovementService $stockMovementService,
+        private readonly StockReversalService $stockReversalService,
         private readonly ValidateJournalAction $validateJournalAction,
         private readonly CheckPeriodAction $checkPeriodAction,
         private readonly CreateJournalAction $createJournalAction,
@@ -209,18 +213,38 @@ class SalesReturnService
                 ->lockForUpdate()
                 ->findOrFail($salesReturnId);
 
-            if ($return->posted_at !== null) {
+            if ($return->voided_at !== null) {
                 throw ValidationException::withMessages([
-                    'posted_at' => ['Cannot update a posted sales return.'],
+                    'voided_at' => ['Voided sales returns cannot be updated.'],
                 ]);
             }
 
-            $journalEntry = $return->journalEntry;
-            if (! $journalEntry || $journalEntry->status !== 'draft') {
-                throw ValidationException::withMessages([
-                    'journal_entry_id' => ['Only draft sales returns can be updated.'],
-                ]);
+            $wasPosted = $return->posted_at !== null;
+
+            if ($wasPosted) {
+                $this->ensureDangerousEditDeleteAllowedOrFail($user);
+
+                $this->stockReversalService->reverseReference(
+                    referenceType: 'sales_return',
+                    referenceId: (int) $return->id,
+                    movementTypes: ['sales_return'],
+                    deleteOriginalMovements: true,
+                    reversalMovementType: null,
+                );
+
+                if ($return->journal_entry_id) {
+                    $this->journalService->void((int) $return->journal_entry_id, 'Dangerous update posted sales return');
+                }
+            } else {
+                $journalEntry = $return->journalEntry;
+                if (! $journalEntry || $journalEntry->status !== 'draft') {
+                    throw ValidationException::withMessages([
+                        'journal_entry_id' => ['Only draft sales returns can be updated.'],
+                    ]);
+                }
             }
+
+            $journalEntry = $return->journalEntry;
 
             $newNo = (string) $data['return_no'];
             if ($newNo !== (string) $return->return_no) {
@@ -314,13 +338,21 @@ class SalesReturnService
                 lines: $journalLines,
             );
 
-            $this->journalService->update((int) $journalEntry->id, $dataJournal, 'Update sales return');
+            if (! $wasPosted) {
+                $this->journalService->update((int) $journalEntry->id, $dataJournal, 'Update sales return');
+            } else {
+                $newJournal = $this->journalService->create($dataJournal, reason: 'Dangerous update sales return (repost)', autoPostOverride: false);
+                $return->forceFill([
+                    'journal_entry_id' => (int) $newJournal->id,
+                ]);
+            }
 
             $return->forceFill([
                 'return_no' => $newNo,
                 'return_date' => (string) $data['return_date'],
                 'description' => $data['description'] ?? null,
                 'amount' => $total,
+                'posted_at' => $wasPosted ? null : $return->posted_at,
                 'updated_by' => $user->id,
             ])->save();
 
@@ -330,6 +362,10 @@ class SalesReturnService
                 SalesReturnLine::query()->create($lp);
             }
 
+            if ($wasPosted) {
+                $this->postInternal((int) $return->id, $user, asSystem: false);
+            }
+
             return $return->fresh(['salesReturnLines.item', 'salesReturnLines.warehouse', 'journalEntry.journalLines.account', 'invoice']);
         });
     }
@@ -337,24 +373,80 @@ class SalesReturnService
     public function delete(int $salesReturnId): void
     {
         DB::transaction(function () use ($salesReturnId): void {
+            $user = $this->resolveUserOrFail();
+
             /** @var SalesReturn $return */
             $return = SalesReturn::query()
                 ->with(['journalEntry'])
                 ->lockForUpdate()
                 ->findOrFail($salesReturnId);
 
-            if ($return->posted_at !== null) {
+            if ($return->voided_at !== null) {
                 throw ValidationException::withMessages([
-                    'posted_at' => ['Cannot delete a posted sales return.'],
+                    'voided_at' => ['Voided sales returns cannot be deleted.'],
                 ]);
+            }
+
+            if ($return->posted_at !== null) {
+                $this->ensureDangerousEditDeleteAllowedOrFail($user);
+
+                $this->stockReversalService->reverseReference(
+                    referenceType: 'sales_return',
+                    referenceId: (int) $return->id,
+                    movementTypes: ['sales_return'],
+                    deleteOriginalMovements: true,
+                    reversalMovementType: null,
+                );
             }
 
             $journalEntry = $return->journalEntry;
             if ($journalEntry) {
-                $this->journalService->void((int) $journalEntry->id, 'Delete sales return');
+                $this->journalService->void((int) $journalEntry->id, $return->posted_at !== null ? 'Dangerous delete posted sales return' : 'Delete sales return');
             }
 
             $return->delete();
+        });
+    }
+
+    public function void(int $salesReturnId, ?string $reason = null): SalesReturn
+    {
+        return DB::transaction(function () use ($salesReturnId, $reason): SalesReturn {
+            $user = $this->resolveUserOrFail();
+
+            /** @var SalesReturn $return */
+            $return = SalesReturn::query()
+                ->with(['salesReturnLines', 'journalEntry', 'invoice'])
+                ->lockForUpdate()
+                ->findOrFail($salesReturnId);
+
+            if ($return->voided_at !== null) {
+                throw ValidationException::withMessages([
+                    'voided_at' => ['Sales return is already voided.'],
+                ]);
+            }
+
+            if ($return->posted_at !== null) {
+                $this->stockReversalService->reverseReference(
+                    referenceType: 'sales_return',
+                    referenceId: (int) $return->id,
+                    movementTypes: ['sales_return'],
+                    deleteOriginalMovements: false,
+                    reversalMovementType: 'void_sales_return',
+                );
+            }
+
+            if ($return->journal_entry_id) {
+                $this->journalService->void((int) $return->journal_entry_id, $reason ?: 'Void sales return');
+            }
+
+            $return->forceFill([
+                'voided_at' => now(),
+                'void_reason' => $reason,
+                'voided_by' => $user->id,
+                'updated_by' => $user->id,
+            ])->save();
+
+            return $return->fresh(['salesReturnLines.item', 'salesReturnLines.warehouse', 'journalEntry.journalLines.account', 'invoice']);
         });
     }
 
@@ -572,5 +664,13 @@ class SalesReturnService
 
         throw (new ModelNotFoundException)->setModel(Account::class, [$accountCode]);
     }
-}
 
+    private function ensureDangerousEditDeleteAllowedOrFail(User $user): void
+    {
+        if (! AppSetting::getBool(self::KEY_ALLOW_ADMIN_EDIT_DELETE_POSTED, false)) {
+            throw new AuthorizationException('Editing/deleting posted transactions is disabled. Use VOID/RETURN instead.');
+        }
+
+        Gate::forUser($user)->authorize('transactions.override_posted_edit_delete');
+    }
+}
