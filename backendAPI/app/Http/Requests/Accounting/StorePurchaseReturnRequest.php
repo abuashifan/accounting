@@ -17,6 +17,7 @@ class StorePurchaseReturnRequest extends FormRequest
             'return_no' => ['required', 'string', 'max:50', 'unique:purchase_returns,return_no'],
             'return_date' => ['required', 'date'],
             'purchase_invoice_id' => ['required', 'integer', 'exists:purchase_invoices,id'],
+            'vendor_id' => ['nullable', 'integer', 'exists:vendors,id'],
             'description' => ['nullable', 'string'],
             'lines' => ['required', 'array', 'min:1'],
             'lines.*.item_id' => ['required', 'integer', 'exists:items,id'],

@@ -46,6 +46,7 @@ class SalesReturnService
      *   return_no:string,
      *   return_date:string,
      *   invoice_id:int,
+     *   customer_id?:int|null,
      *   description?:string|null,
      *   lines:list<array{item_id:int,warehouse_id:int,quantity:float|int,unit_price:float|int}>
      * } $data
@@ -68,6 +69,11 @@ class SalesReturnService
                 throw ValidationException::withMessages([
                     'lines' => ['At least one return line is required.'],
                 ]);
+            }
+
+            $customerId = (int) ($data['customer_id'] ?? 0);
+            if ($customerId > 0) {
+                Customer::query()->findOrFail($customerId);
             }
 
             $user = $this->resolveUserOrFail();
@@ -149,6 +155,8 @@ class SalesReturnService
                     description: (string) ($data['description'] ?? ('Sales return '.$data['return_no'])),
                     accounting_period_id: (int) $period->id,
                     lines: $journalLines,
+                    entity_type: 'customer',
+                    entity_id: $customerId > 0 ? $customerId : null,
                 ),
                 reason: 'Sales return',
                 autoPostOverride: false,
@@ -159,6 +167,7 @@ class SalesReturnService
                 'return_no' => (string) $data['return_no'],
                 'return_date' => (string) $data['return_date'],
                 'invoice_id' => (int) $data['invoice_id'],
+                'customer_id' => $data['customer_id'] ?? null,
                 'description' => $data['description'] ?? null,
                 'amount' => $total,
                 'posted_at' => null,
@@ -198,6 +207,7 @@ class SalesReturnService
      * @param array{
      *   return_no:string,
      *   return_date:string,
+     *   customer_id?:int|null,
      *   description?:string|null,
      *   lines:list<array{item_id:int,warehouse_id:int,quantity:float|int,unit_price:float|int}>
      * } $data
@@ -350,6 +360,7 @@ class SalesReturnService
             $return->forceFill([
                 'return_no' => $newNo,
                 'return_date' => (string) $data['return_date'],
+                'customer_id' => $data['customer_id'] ?? $return->customer_id,
                 'description' => $data['description'] ?? null,
                 'amount' => $total,
                 'posted_at' => $wasPosted ? null : $return->posted_at,

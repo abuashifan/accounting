@@ -43,7 +43,12 @@ class PurchaseReturn extends Model
     {
         return $this->belongsTo(PurchaseInvoice::class);
     }
+    // app/Domains/Accounting/Models/PurchaseReturn.php - tambahkan method ini
 
+    public function vendor(): BelongsTo
+    {
+        return $this->belongsTo(Vendor::class);
+    }
     public function purchaseReturnLines(): HasMany
     {
         return $this->hasMany(PurchaseReturnLine::class, 'purchase_return_id');

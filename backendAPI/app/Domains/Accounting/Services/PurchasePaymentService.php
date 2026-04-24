@@ -34,7 +34,7 @@ class PurchasePaymentService
             $user = $this->resolveUserOrFail();
 
             /** @var PurchaseInvoice $invoice */
-            $invoice = PurchaseInvoice::query()->lockForUpdate()->findOrFail($data->purchase_invoice_id);
+            $invoice = PurchaseInvoice::query()->with('vendor')->lockForUpdate()->findOrFail($data->purchase_invoice_id);
 
             if (PurchasePayment::query()->where('payment_no', $data->payment_no)->exists()) {
                 throw ValidationException::withMessages([
@@ -58,6 +58,8 @@ class PurchasePaymentService
                         new JournalLineData(account_id: (int) $payable->id, debit: $data->amount, credit: 0),
                         new JournalLineData(account_id: (int) $creditAccount->id, debit: 0, credit: $data->amount),
                     ],
+                    entity_type: 'vendor',
+                    entity_id: $invoice->vendor_id,
                 ),
                 reason: 'Purchase payment',
             );

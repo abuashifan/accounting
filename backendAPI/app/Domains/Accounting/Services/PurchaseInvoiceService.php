@@ -13,6 +13,7 @@ use App\Models\PurchaseInvoiceLine;
 use App\Models\PurchaseReturn;
 use App\Models\StockBalance;
 use App\Models\User;
+use App\Models\Vendor;
 use App\Models\Warehouse;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -38,6 +39,7 @@ class PurchaseInvoiceService
      * @param array{
      *   invoice_no:string,
      *   invoice_date:string,
+     *   vendor_id?:int|null,
      *   description?:string|null,
      *   lines:list<array{item_id:int,warehouse_id:int,quantity:float|int,unit_cost:float|int}>
      * } $data
@@ -61,6 +63,11 @@ class PurchaseInvoiceService
                 throw ValidationException::withMessages([
                     'lines' => ['At least one invoice line is required.'],
                 ]);
+            }
+
+            $vendorId = (int) ($data['vendor_id'] ?? 0);
+            if ($vendorId > 0) {
+                Vendor::query()->findOrFail($vendorId);
             }
 
             $inventoryByAccount = [];
@@ -125,6 +132,8 @@ class PurchaseInvoiceService
                     description: (string) ($data['description'] ?? ('Purchase invoice '.$data['invoice_no'])),
                     accounting_period_id: (int) $period->id,
                     lines: $journalLines,
+                    entity_type: 'vendor',
+                    entity_id: $vendorId > 0 ? $vendorId : null,
                 ),
                 reason: 'Purchase invoice',
                 autoPostOverride: false,
@@ -134,6 +143,7 @@ class PurchaseInvoiceService
             $invoice = PurchaseInvoice::query()->create([
                 'invoice_no' => (string) $data['invoice_no'],
                 'invoice_date' => (string) $data['invoice_date'],
+                'vendor_id' => $data['vendor_id'] ?? null,
                 'description' => $data['description'] ?? null,
                 'amount' => $invoiceTotal,
                 'paid_amount' => 0,
@@ -176,6 +186,7 @@ class PurchaseInvoiceService
      * @param array{
      *   invoice_no:string,
      *   invoice_date:string,
+     *   vendor_id?:int|null,
      *   description?:string|null,
      *   lines:list<array{item_id:int,warehouse_id:int,quantity:float|int,unit_cost:float|int}>
      * } $data
@@ -340,6 +351,7 @@ class PurchaseInvoiceService
             $invoice->forceFill([
                 'invoice_no' => $newInvoiceNo,
                 'invoice_date' => (string) $data['invoice_date'],
+                'vendor_id' => $data['vendor_id'] ?? $invoice->vendor_id,
                 'description' => $data['description'] ?? null,
                 'amount' => $invoiceTotal,
                 'paid_amount' => 0,

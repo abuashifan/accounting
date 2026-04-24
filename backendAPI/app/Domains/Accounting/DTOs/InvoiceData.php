@@ -8,6 +8,7 @@ final readonly class InvoiceData
         public string $invoice_no,
         public string $invoice_date,
         public float $amount,
+        public ?int $customer_id = null,
         public ?string $description = null,
     ) {}
 }

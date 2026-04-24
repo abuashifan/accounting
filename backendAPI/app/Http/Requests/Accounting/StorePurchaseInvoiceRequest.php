@@ -16,6 +16,7 @@ class StorePurchaseInvoiceRequest extends FormRequest
         return [
             'invoice_no' => ['required', 'string', 'max:50', 'unique:purchase_invoices,invoice_no'],
             'invoice_date' => ['required', 'date'],
+            'vendor_id' => ['nullable', 'integer', 'exists:vendors,id'],
             'description' => ['nullable', 'string'],
             'lines' => ['required', 'array', 'min:1'],
             'lines.*.item_id' => ['required', 'integer', 'exists:items,id'],

@@ -19,6 +19,7 @@ class UpdateSalesReturnRequest extends FormRequest
         return [
             'return_no' => ['required', 'string', 'max:50', Rule::unique('sales_returns', 'return_no')->ignore($id)],
             'return_date' => ['required', 'date'],
+            'customer_id' => ['nullable', 'integer', 'exists:customers,id'],
             'description' => ['nullable', 'string'],
             'lines' => ['required', 'array', 'min:1'],
             'lines.*.item_id' => ['required', 'integer', 'exists:items,id'],

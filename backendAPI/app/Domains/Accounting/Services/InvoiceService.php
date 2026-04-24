@@ -10,6 +10,7 @@ use App\Domains\Accounting\DTOs\JournalData;
 use App\Domains\Accounting\DTOs\JournalLineData;
 use App\Models\AccountingPeriod;
 use App\Models\Account;
+use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\Item;
@@ -71,6 +72,7 @@ class InvoiceService
             $invoice = Invoice::query()->create([
                 'invoice_no' => $data->invoice_no,
                 'invoice_date' => $data->invoice_date,
+                'customer_id' => $data->customer_id ?? null,
                 'description' => $data->description,
                 'amount' => $data->amount,
                 'paid_amount' => 0,
@@ -92,6 +94,7 @@ class InvoiceService
      * @param array{
      *   invoice_no:string,
      *   invoice_date:string,
+     *   customer_id?:int|null,
      *   description?:string|null,
      *   lines:list<array{item_id:int,warehouse_id:int,quantity:float|int,unit_price:float|int}>
      * } $data
@@ -106,6 +109,11 @@ class InvoiceService
                 throw ValidationException::withMessages([
                     'lines' => ['At least one invoice line is required.'],
                 ]);
+            }
+
+            $customerId = (int) ($data['customer_id'] ?? 0);
+            if ($customerId > 0) {
+                Customer::query()->findOrFail($customerId);
             }
 
             $user = $this->resolveUserOrFail();
@@ -184,6 +192,8 @@ class InvoiceService
                     description: (string) ($data['description'] ?? ('Sales invoice '.$data['invoice_no'])),
                     accounting_period_id: (int) $period->id,
                     lines: $journalLines,
+                    entity_type: 'customer',
+                    entity_id: $customerId > 0 ? $customerId : null,
                 ),
                 reason: 'Sales invoice',
                 autoPostOverride: false,
@@ -193,6 +203,7 @@ class InvoiceService
             $invoice = Invoice::query()->create([
                 'invoice_no' => (string) $data['invoice_no'],
                 'invoice_date' => (string) $data['invoice_date'],
+                'customer_id' => $customerId > 0 ? $customerId : null,
                 'description' => $data['description'] ?? null,
                 'amount' => $invoiceTotal,
                 'paid_amount' => 0,
@@ -239,6 +250,7 @@ class InvoiceService
      * @param array{
      *   invoice_no:string,
      *   invoice_date:string,
+     *   customer_id?:int|null,
      *   description?:string|null,
      *   lines:list<array{item_id:int,warehouse_id:int,quantity:float|int,unit_price:float|int}>
      * } $data
@@ -315,6 +327,11 @@ class InvoiceService
                 throw ValidationException::withMessages([
                     'lines' => ['At least one invoice line is required.'],
                 ]);
+            }
+
+            $customerId = (int) ($data['customer_id'] ?? 0);
+            if ($customerId > 0) {
+                Customer::query()->findOrFail($customerId);
             }
 
             $period = $this->resolvePeriodForDate((string) $data['invoice_date']);
@@ -398,9 +415,12 @@ class InvoiceService
                 ]);
             }
 
+            $newCustomerId = $customerId > 0 ? $customerId : $invoice->customer_id;
+
             $invoice->forceFill([
                 'invoice_no' => $newNo,
                 'invoice_date' => (string) $data['invoice_date'],
+                'customer_id' => $newCustomerId,
                 'description' => $data['description'] ?? null,
                 'amount' => $invoiceTotal,
                 'paid_amount' => 0,

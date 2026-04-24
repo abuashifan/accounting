@@ -39,6 +39,7 @@ class PurchaseReturnService
      *   return_no:string,
      *   return_date:string,
      *   purchase_invoice_id:int,
+     *   vendor_id?:int|null,
      *   description?:string|null,
      *   lines:list<array{item_id:int,warehouse_id:int,quantity:float|int,unit_cost:float|int}>
      * } $data
@@ -61,6 +62,11 @@ class PurchaseReturnService
                 throw ValidationException::withMessages([
                     'lines' => ['At least one return line is required.'],
                 ]);
+            }
+
+            $vendorId = (int) ($data['vendor_id'] ?? 0);
+            if ($vendorId > 0) {
+                Vendor::query()->findOrFail($vendorId);
             }
 
             $user = $this->resolveUserOrFail();
@@ -140,6 +146,8 @@ class PurchaseReturnService
                     description: (string) ($data['description'] ?? ('Purchase return '.$data['return_no'])),
                     accounting_period_id: (int) $period->id,
                     lines: $journalLines,
+                    entity_type: 'vendor',
+                    entity_id: $vendorId > 0 ? $vendorId : null,
                 ),
                 reason: 'Purchase return',
                 autoPostOverride: false,
@@ -150,6 +158,7 @@ class PurchaseReturnService
                 'return_no' => (string) $data['return_no'],
                 'return_date' => (string) $data['return_date'],
                 'purchase_invoice_id' => (int) $data['purchase_invoice_id'],
+                'vendor_id' => $data['vendor_id'] ?? null,
                 'description' => $data['description'] ?? null,
                 'amount' => $total,
                 'posted_at' => null,
@@ -189,6 +198,7 @@ class PurchaseReturnService
      * @param array{
      *   return_no:string,
      *   return_date:string,
+     *   vendor_id?:int|null,
      *   description?:string|null,
      *   lines:list<array{item_id:int,warehouse_id:int,quantity:float|int,unit_cost:float|int}>
      * } $data
@@ -340,6 +350,7 @@ class PurchaseReturnService
             $return->forceFill([
                 'return_no' => $newNo,
                 'return_date' => (string) $data['return_date'],
+                'vendor_id' => $data['vendor_id'] ?? $return->vendor_id,
                 'description' => $data['description'] ?? null,
                 'amount' => $total,
                 'posted_at' => $wasPosted ? null : $return->posted_at,

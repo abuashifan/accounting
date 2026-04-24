@@ -40,7 +40,12 @@ class Invoice extends Model
             'voided_at' => 'datetime',
         ];
     }
+    // app/Domains/Accounting/Models/Invoice.php - tambahkan method ini
 
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
+    }
     public function journalEntry(): BelongsTo
     {
         return $this->belongsTo(JournalEntry::class);

@@ -16,6 +16,7 @@ class StoreSalesInvoiceRequest extends FormRequest
         return [
             'invoice_no' => ['required', 'string', 'max:50', 'unique:invoices,invoice_no'],
             'invoice_date' => ['required', 'date'],
+            'customer_id' => ['nullable', 'integer', 'exists:customers,id'],
             'description' => ['nullable', 'string'],
             'lines' => ['required', 'array', 'min:1'],
             'lines.*.item_id' => ['required', 'integer', 'exists:items,id'],

@@ -41,6 +41,10 @@ class PurchaseInvoice extends Model
         ];
     }
 
+    public function vendor(): BelongsTo
+    {
+        return $this->belongsTo(Vendor::class);
+    }
     public function journalEntry(): BelongsTo
     {
         return $this->belongsTo(JournalEntry::class);

@@ -38,7 +38,12 @@ class SalesReturn extends Model
             'voided_at' => 'datetime',
         ];
     }
+    // app/Domains/Accounting/Models/SalesReturn.php - tambahkan method ini
 
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
+    }
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class);

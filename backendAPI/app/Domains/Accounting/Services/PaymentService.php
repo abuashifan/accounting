@@ -33,7 +33,7 @@ class PaymentService
 
             $user = $this->resolveUserOrFail();
             /** @var Invoice $invoice */
-            $invoice = Invoice::query()->lockForUpdate()->findOrFail($data->invoice_id);
+            $invoice = Invoice::query()->with('customer')->lockForUpdate()->findOrFail($data->invoice_id);
 
             $this->ensurePaymentNumberIsUnique($data->payment_no);
             $this->ensureNotOverpaid($invoice, $data->amount);
@@ -56,6 +56,8 @@ class PaymentService
                         new JournalLineData(account_id: $cashAccount->id, debit: $data->amount, credit: 0),
                         new JournalLineData(account_id: $receivableAccount->id, debit: 0, credit: $data->amount),
                     ],
+                    entity_type: 'customer',
+                    entity_id: $invoice->customer_id,
                 ),
                 reason: 'Payment',
             );

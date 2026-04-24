@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Accounting\JournalController;
 use App\Http\Controllers\Accounting\AccountController;
+use App\Http\Controllers\Accounting\CustomerController;
+use App\Http\Controllers\Accounting\VendorController;
 use App\Http\Controllers\Accounting\JournalSettingsController;
 use App\Http\Controllers\Accounting\ItemController;
 use App\Http\Controllers\Accounting\InvoiceController;
@@ -24,6 +26,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/accounts', [AccountController::class, 'store']);
     Route::put('/accounts/{id}', [AccountController::class, 'update']);
     Route::delete('/accounts/{id}', [AccountController::class, 'destroy']);
+
+    // routes/api.php - tambahkan setelah route accounts
+
+    Route::get('/customers', [CustomerController::class, 'index']);
+    Route::post('/customers', [CustomerController::class, 'store']);
+    Route::get('/customers/{id}', [CustomerController::class, 'show']);
+    Route::put('/customers/{id}', [CustomerController::class, 'update']);
+    Route::delete('/customers/{id}', [CustomerController::class, 'destroy']);
+
+    Route::get('/vendors', [VendorController::class, 'index']);
+    Route::post('/vendors', [VendorController::class, 'store']);
+    Route::get('/vendors/{id}', [VendorController::class, 'show']);
+    Route::put('/vendors/{id}', [VendorController::class, 'update']);
+    Route::delete('/vendors/{id}', [VendorController::class, 'destroy']);
+
     Route::get('/items', [ItemController::class, 'index']);
     Route::post('/items', [ItemController::class, 'store']);
     Route::get('/items/{id}', [ItemController::class, 'show']);

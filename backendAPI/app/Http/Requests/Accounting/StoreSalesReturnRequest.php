@@ -17,6 +17,7 @@ class StoreSalesReturnRequest extends FormRequest
             'return_no' => ['required', 'string', 'max:50', 'unique:sales_returns,return_no'],
             'return_date' => ['required', 'date'],
             'invoice_id' => ['required', 'integer', 'exists:invoices,id'],
+            'customer_id' => ['nullable', 'integer', 'exists:customers,id'],
             'description' => ['nullable', 'string'],
             'lines' => ['required', 'array', 'min:1'],
             'lines.*.item_id' => ['required', 'integer', 'exists:items,id'],

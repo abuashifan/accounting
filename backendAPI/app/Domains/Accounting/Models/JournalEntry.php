@@ -20,6 +20,8 @@ class JournalEntry extends Model
         'description',
         'status',
         'accounting_period_id',
+        'entity_type',  // Tambahkan
+        'entity_id',    // Tambahkan
         'created_by',
         'updated_by',
     ];

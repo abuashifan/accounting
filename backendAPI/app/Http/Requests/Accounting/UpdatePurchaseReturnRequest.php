@@ -19,6 +19,7 @@ class UpdatePurchaseReturnRequest extends FormRequest
         return [
             'return_no' => ['required', 'string', 'max:50', Rule::unique('purchase_returns', 'return_no')->ignore($id)],
             'return_date' => ['required', 'date'],
+            'vendor_id' => ['nullable', 'integer', 'exists:vendors,id'],
             'description' => ['nullable', 'string'],
             'lines' => ['required', 'array', 'min:1'],
             'lines.*.item_id' => ['required', 'integer', 'exists:items,id'],

@@ -31,6 +31,8 @@ class CreateJournalAction
             'description' => $data->description,
             'status' => $journalEntry->exists ? $journalEntry->status : 'draft',
             'accounting_period_id' => $data->accounting_period_id,
+            'entity_type' => $data->entity_type,  // Tambahkan
+            'entity_id' => $data->entity_id,      // Tambahkan
             'created_by' => $journalEntry->exists ? $journalEntry->created_by : $actorId,
             'updated_by' => $actorId,
         ]);
